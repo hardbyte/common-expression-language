@@ -75,7 +75,7 @@ enum Expr {
 //}
 
 
-fn parser<'a>() -> impl Parser<&'a str, Expr> {
+fn parser<'a>() -> impl Parser<char, Expr, Error = Simple<char>> {
     let ident = text::ident()
         .padded();
     
@@ -94,48 +94,49 @@ fn parser<'a>() -> impl Parser<&'a str, Expr> {
         let atom = number
             .or(expr.delimited_by(just('('), just(')')))
             .or(ident.map(Expr::Var));
+        atom
 
-        let op = |c| just(c).padded();
-
-        let unary = op('-')
-            .repeated()
-            .then(atom)
-            .foldr(|_op, rhs| Expr::Neg(Box::new(rhs)));
-
-        let product = unary.clone()
-            .then(op('*').to(Expr::Mul as fn(_, _) -> _)
-                .or(op('/').to(Expr::Div as fn(_, _) -> _))
-                .then(unary)
-                .repeated())
-            .foldl(|lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)));
-
-        let sum = product.clone()
-            .then(op('+').to(Expr::Add as fn(_, _) -> _)
-                .or(op('-').to(Expr::Sub as fn(_, _) -> _))
-                .then(product)
-                .repeated())
-            .foldl(|lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)));
-        sum
+//        let op = |c| just(c).padded();
+//
+//        let unary = op('-')
+//            .repeated()
+//            .then(atom)
+//            .foldr(|_op, rhs| Expr::Neg(Box::new(rhs)));
+//
+//        let product = unary.clone()
+//            .then(op('*').to(Expr::Mul as fn(_, _) -> _)
+//                .or(op('/').to(Expr::Div as fn(_, _) -> _))
+//                .then(unary)
+//                .repeated())
+//            .foldl(|lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)));
+//
+//        let sum = product.clone()
+//            .then(op('+').to(Expr::Add as fn(_, _) -> _)
+//                .or(op('-').to(Expr::Sub as fn(_, _) -> _))
+//                .then(product)
+//                .repeated())
+//            .foldl(|lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)));
+//        sum
     });
     
-    let decl = recursive(|decl| {
-        let r#let = text::keyword("let")
-            .ignore_then(ident)
-            .then_ignore(just('='))
-            .then(expr.clone())
-            .then_ignore(just(';'))
-            .then(decl)
-            .map(|((name, rhs), then)| Expr::Let {
-                name,
-                rhs: Box::new(rhs),
-                then: Box::new(then)
-            });
+//    let decl = recursive(|decl| {
+//        let r#let = text::keyword("let")
+//            .ignore_then(ident)
+//            .then_ignore(just('='))
+//            .then(expr.clone())
+//            .then_ignore(just(';'))
+//            .then(decl)
+//            .map(|((name, rhs), then)| Expr::Let {
+//                name,
+//                rhs: Box::new(rhs),
+//                then: Box::new(then)
+//            });
+//
+//        r#let.or(expr).padded()
+//    });
     
-        r#let.or(expr).padded()
-    });
-    
-    decl.then_ignore(end())
-    
+//    decl.then_ignore(end())
+    expr.then_ignore(end())
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
@@ -195,28 +196,7 @@ impl From<&Atom> for CelType {
         }
     }
 }
-//
-//impl<'a> CelType {
-//    pub fn resolve(expr: &'a Expr, vars: &mut Vec<(&'a String, CelType)>) {
-//        match expr {
-//            Expr::Atom(atom) => atom.into(),
-//            Expr::Var(_) => todo!(),
-//
-//            // Unary Ops
-//            //Expr::Unary(op, expr) => 
-//            Expr::Neg(_) => todo!(),
-//
-//            // Binary Ops
-//            Expr::Add(_, _) => todo!(),
-//            Expr::Sub(_, _) => todo!(),
-//            Expr::Mul(_, _) => todo!(),
-//            Expr::Div(_, _) => todo!(),
-//
-//            Expr::Call(_, _) => todo!(),
-//            Expr::Let { name, rhs, then } => todo!(),
-//        }
-//    }
-//}
+
 
 fn eval<'a>(expr: &'a Expr, vars: &mut Vec<(&'a String, CelType)>) -> Result<CelType, String> {
     match expr {
@@ -246,14 +226,14 @@ fn eval<'a>(expr: &'a Expr, vars: &mut Vec<(&'a String, CelType)>) -> Result<Cel
 }
 
 fn main() {
-    let filename = std::env::args().nth(1).unwrap();
-    let src = std::fs::read_to_string(filename).expect("Failed to read source file");
-    println!("Loaded source file");
+    let src = std::env::args().nth(1).unwrap();
+
+    println!("Loaded source. {:?}", src);
     
     match parser().parse(src) {
         Ok(ast) => {
             println!("AST: \n{:?}\n", ast);
-            println!("Evaluating program")
+            println!("Evaluating program");
             match eval(&ast, &mut Vec::new()) {
                 Ok(output) => println!("{:?}", output),
                 Err(eval_err) => println!("Evaluation error: {}", eval_err),

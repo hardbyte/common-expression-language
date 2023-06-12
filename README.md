@@ -25,3 +25,8 @@ Learning Rust by playing with the Common Expression Language.
 - [https://github.com/thesayyn/cel-rust](thesayyn/cel-rust) (Incomplete). WASM target with online [demo](https://thesayyn.github.io/cel-rust/).
   Parser uses lalrpop.
   
+## Execution
+
+```
+cargo run -- 10 + 2
+```
