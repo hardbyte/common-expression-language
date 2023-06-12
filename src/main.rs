@@ -38,6 +38,13 @@ enum Expr {
     },
 }
 
+fn boolean<'a>() -> impl Parser<char, Expr, Error = Simple<char>> {
+    just("true").to(true).or(
+        just("false").to(false)
+    ).map(|b| Expr::Atom((Atom::Bool(b))))
+}
+
+
 /// Parses floating point and integer numbers and returns them as [`Expression::Atom(Atom::Double(...))`]
 /// or [`Expr::Atom(Atom::Int(...))`] types. The following formats are supported:
 /// - `1`
@@ -94,11 +101,16 @@ fn parser<'a>() -> impl Parser<char, Expr, Error = Simple<char>> {
 
     let expr = recursive(|expr| {
 
-        let number = numbers();
+        //let number = numbers();
 
-        let atom = number
+        let atom = choice((
+                numbers(),
+                boolean()
+                )
+            )
             .or(expr.delimited_by(just('('), just(')')))
             .or(ident.map(Expr::Var));
+
         atom
 
         //        let op = |c| just(c).padded();
