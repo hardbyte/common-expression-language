@@ -17,6 +17,14 @@ pub enum UnaryOp {
     Not,
 }
 
+#[derive(Debug, PartialEq, Clone)]
+pub enum BinaryOp {
+    Add,
+    Sub,
+    Mul,
+    Div,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
     Atom(Atom),
@@ -25,10 +33,7 @@ pub enum Expr {
 
     Unary(UnaryOp, Box<Expr>),
 
-    Add(Box<Expr>, Box<Expr>),
-    Sub(Box<Expr>, Box<Expr>),
-    Mul(Box<Expr>, Box<Expr>),
-    Div(Box<Expr>, Box<Expr>),
+    Binary(Box<Expr>, BinaryOp, Box<Expr>),
 
     Call(String, Vec<Expr>),
 

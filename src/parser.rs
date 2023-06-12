@@ -1,4 +1,4 @@
-use crate::ast::{Atom, Expr, UnaryOp};
+use crate::ast::{Atom, BinaryOp, Expr, UnaryOp};
 use chumsky::Parser;
 use chumsky::prelude::*;
 use crate::ast::Expr::Unary;
@@ -18,7 +18,7 @@ fn test_boolean_parser() {
     assert!(boolean().parse("False").is_err());
 }
 
-/// Parses floating point and integer numbers and returns them as [`Expression::Atom(Atom::Double(...))`]
+/// Parses floating point and integer numbers and returns them as [`Expr::Atom(Atom::Double(...))`]
 /// or [`Expr::Atom(Atom::Int(...))`] types. The following formats are supported:
 /// - `1`
 /// - `1.`
@@ -80,19 +80,24 @@ pub fn parser<'a>() -> impl Parser<char, Expr, Error=Simple<char>> {
             .or(ident.map(Expr::Var));
 
 
-        let op = |c| just(c).padded();
+        let op = |c| just::<char, _, Simple<char>>(c).padded();
 
         let unary = op('-')
             .repeated()
             .then(atom)
             .foldr(|_op, rhs| Expr::Unary(UnaryOp::Neg, Box::new(rhs)));
 
-        // let product = unary.clone()
-        //     .then(op('*').to(Expr::Mul as fn(_, _) -> _)
-        //         .or(op('/').to(Expr::Div as fn(_, _) -> _))
-        //         .then(unary)
-        //         .repeated())
-        //     .foldl(|lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)));
+        let product_div_op = op('*').to(BinaryOp::Mul)
+                .or(op('/').to(BinaryOp::Div));
+
+        // TODO: Can't seem to clone unary here
+        //let tmp = unary.clone().then(product_div_op);
+
+        // let product = unary
+        //     .then(product_div_op)
+        //     .then(unary)
+        //     .repeated()
+        //     .foldl(|lhs, (binary_op, rhs)| Expr::Binary(Box::new(lhs),binary_op, Box::new(rhs)));
         //
         // let sum = product.clone()
         //     .then(op('+').to(Expr::Add as fn(_, _) -> _)
@@ -102,6 +107,7 @@ pub fn parser<'a>() -> impl Parser<char, Expr, Error=Simple<char>> {
         //     .foldl(|lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)));
         // sum
         unary
+        //product
     });
 
     //    let decl = recursive(|decl| {
