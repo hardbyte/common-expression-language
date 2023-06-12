@@ -5,9 +5,17 @@ use chumsky::prelude::*;
 fn boolean<'a>() -> impl Parser<char, Expr, Error = Simple<char>> {
     just("true").to(true).or(
         just("false").to(false)
-    ).map(|b| Expr::Atom((Atom::Bool(b))))
+    )
+    .map(|b| Expr::Atom(Atom::Bool(b)))
 }
 
+#[test]
+fn test_boolean_parser() {
+    assert_eq!(boolean().parse("true"), Ok(Expr::Atom(Atom::Bool(true))));
+    assert_eq!(boolean().parse("false"), Ok(Expr::Atom(Atom::Bool(false))));
+    assert!(boolean().parse("tru").is_err());
+    assert!(boolean().parse("False").is_err());
+}
 
 /// Parses floating point and integer numbers and returns them as [`Expression::Atom(Atom::Double(...))`]
 /// or [`Expr::Atom(Atom::Int(...))`] types. The following formats are supported:
