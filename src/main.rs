@@ -17,7 +17,7 @@ pub enum Atom {
 }
 
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum Expr {
     
     Atom(Atom),
@@ -51,28 +51,32 @@ enum Expr {
 /// - `1E10`
 /// - `1E-10`
 /// - `-1e10`
-//fn numbers<'src>() -> impl Parser<char, Expr, Error = Simple<char>> {
-//    let digits = text::digits(10).slice();
-//    let frac = just('.').then(digits.clone());
-//    let exp = just('e')
-//        .or(just('E'))
-//        .then(one_of("+-").or_not())
-//        .then(digits);
-//    
-//    let floating = just('-')
-//        .or_not()
-//        .then(text::int(10))
-//        .then(frac)
-//        .then(exp.or_not())
-//        .map_slice(|s: &str| Expr::Atom(Atom::Double(s.parse().unwrap())))
-//        .boxed();
-//    
-//    let integer = text::int(10)
-//        .slice()
-//        .map(|s: &str| Expr::Atom(Atom::Int(s.parse().unwrap())));
-//    
-//    choice((floating, integer)).padded()
-//}
+fn numbers<'a>() -> impl Parser<char, Expr, Error = Simple<char>> {
+
+    let digits = text::digits::<char, Simple<char>>(10);
+
+    let frac = just('.').then(digits.clone());
+    let exp = just('e')
+        .or(just('E'))
+        .then(one_of("+-").or_not())
+        .then(digits.clone());
+
+    let floating = just('-').or_not()
+        .then(text::int::<char, Simple<char>>(10))
+        .then(frac)
+        .then(exp.or_not())
+        // Ok this is clearly getting silly. Idea was to reconstruct the string to ask rust to parse the Float.
+        //.map(|(((_, _), _), (_, s)):(((Option<char>, String), (char, String)), Option<((char, Option<char>), String)>)| Expr::Atom(Atom::Double(s.as_str().parse().unwrap())));
+        //.boxed();
+        // TODO remove this temporary hack
+        .to(Expr::Atom(Atom::Double(42.0)));
+
+    let integer = text::int(10)
+    .map(|s: String| Expr::Atom(Atom::Int(s.as_str().parse().unwrap())));
+
+    choice((floating, integer)).padded()
+    //integer
+}
 
 
 fn parser<'a>() -> impl Parser<char, Expr, Error = Simple<char>> {
@@ -82,11 +86,11 @@ fn parser<'a>() -> impl Parser<char, Expr, Error = Simple<char>> {
     let expr = recursive(|expr| {
     
         // Todo replace with something like numbers()    
-        let integer = text::int(10)
-            .map(|s: String| Expr::Atom(Atom::Int(s.parse().unwrap())));
+//        let integer = text::int(10)
+//            .map(|s: String| Expr::Atom(Atom::Int(s.parse().unwrap())));
     
-        let number = integer;
-        //       let number = numbers();
+        //let number = integer;
+        let number = numbers();
 //        let int = text::int(10)
 //            .map(|s: String| Atom::Int(s.parse().unwrap()))
 //            .padded();
