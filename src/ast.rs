@@ -11,7 +11,7 @@ pub enum Atom {
     Null,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
     Atom(Atom),
 

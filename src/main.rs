@@ -19,17 +19,20 @@ impl ops::Neg for NumericCelType {
 
     fn neg(self) -> NumericCelType {
         match self {
-            NumericCelType::UInt(x) => NumericCelType::Int(-(x as i64)), // Perhas should panic instead of coerce
+            NumericCelType::UInt(x) => NumericCelType::Int(-(x as i64)), // Perhaps should panic instead of coerce
             NumericCelType::Int(x) => NumericCelType::Int(-x),
             NumericCelType::Float(x) => NumericCelType::Float(-x),
         }
     }
 }
+
 impl ops::Add<NumericCelType> for NumericCelType {
     type Output = NumericCelType;
 
-    fn add(self, other: Self) -> Self {
-        self + other
+    fn add(self, other: NumericCelType) -> Self {
+        match (self, other) {
+            (x, y) => x + y
+        }
     }
 }
 
