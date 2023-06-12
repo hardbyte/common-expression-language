@@ -38,9 +38,10 @@ enum Expr {
     },
 }
 
-/// Parses floating point and integer numbers and returns them as [`Expression::Atom(Atom::Float(...))`]
+/// Parses floating point and integer numbers and returns them as [`Expression::Atom(Atom::Double(...))`]
 /// or [`Expr::Atom(Atom::Int(...))`] types. The following formats are supported:
 /// - `1`
+/// - `1.`
 /// - `1.0`
 /// - `-1`
 /// - `-1.0`
@@ -53,7 +54,7 @@ fn numbers<'a>() -> impl Parser<char, Expr, Error = Simple<char>> {
     let digits = text::digits::<char, Simple<char>>(10);
 
     let frac = just('.')
-        .chain::<char, _, _>(digits.clone());
+        .chain::<char, _, _>(digits.clone().or_not());
 
     let exp = just('e')
         .or(just('E'))
@@ -71,7 +72,7 @@ fn numbers<'a>() -> impl Parser<char, Expr, Error = Simple<char>> {
 
         .try_map(|chars, span| {
             let str = chars.into_iter().collect::<String>();
-            println!("PARSER: {:?}", str);
+
             if let Ok(i) = str.parse::<i64>() {
                 Ok(Expr::Atom(Atom::Int(i)))
             } else if let Ok(f) = str.parse::<f64>() {
@@ -81,13 +82,11 @@ fn numbers<'a>() -> impl Parser<char, Expr, Error = Simple<char>> {
             }
 
         });
-        //.boxed();
-
 
     let integer = text::int(10).map(|s: String| Expr::Atom(Atom::Int(s.as_str().parse().unwrap())));
 
     choice((floating, integer)).padded()
-    //integer
+
 }
 
 fn parser<'a>() -> impl Parser<char, Expr, Error = Simple<char>> {
