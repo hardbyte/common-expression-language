@@ -16,7 +16,7 @@ Learning Rust by playing with the Common Expression Language.
 - Research and try the existing Rust implementations of CEL.
 - Benchmark the Cloud Custodian Python-CEL implementation against the Rust ones.
 - If performance is significantly better, consider wrapping an existing Rust one for Python.
-
+- Use an existing Lexer like [Logos](https://docs.rs/logos/latest/logos/)?
 
 ## Existing Implementations
 
