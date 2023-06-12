@@ -4,7 +4,7 @@ use chumsky::Parser;
 
 use std::ops;
 use std::rc::Rc;
-use cel_parser::ast::{Atom, Expr};
+use cel_parser::ast::{Atom, Expr, UnaryOp};
 use cel_parser::parser;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
@@ -69,12 +69,26 @@ fn eval<'a>(expr: &'a Expr, vars: &mut Vec<(&'a String, CelType)>) -> Result<Cel
     match expr {
         Expr::Atom(atom) => Ok(atom.into()),
 
-        //Expr::Neg(a) => Ok(-eval(a, vars)?),
+        Expr::Unary(op, atom) => {
+            let inner = eval(atom, vars)?;
+            match op {
+                UnaryOp::Neg => {
+                    match inner {
+                        CelType::NumericCelType(nct) => Ok(CelType::NumericCelType(-nct)),
+                        _ => Err(format!("Can't negate non-numeric type {:?}", inner)),
+                    }
+                }
+                UnaryOp::Not => todo!("Implement 'Not' unary operator"),
+            }
 
-        //        Expr::Add(a, b) => Ok(eval(a, vars)? + eval(b, vars)?),
-        //        Expr::Sub(a, b) => Ok(eval(a, vars)? - eval(b, vars)?),
-        //        Expr::Mul(a, b) => Ok(eval(a, vars)? * eval(b, vars)?),
-        //        Expr::Div(a, b) => Ok(eval(a, vars)? / eval(b, vars)?),
+
+        }
+
+        // Expr::Binary(op, a, b) => {
+        // Expr::Add(a, b) => Ok(eval(a, vars)? + eval(b, vars)?),
+        // Expr::Sub(a, b) => Ok(eval(a, vars)? - eval(b, vars)?),
+        // Expr::Mul(a, b) => Ok(eval(a, vars)? * eval(b, vars)?),
+        // Expr::Div(a, b) => Ok(eval(a, vars)? / eval(b, vars)?),
         //
         //        Expr::Var(name) => if let Some((_, val)) = vars.iter().rev().find(|(var, _)| *var == name) {
         //            Ok(*val)

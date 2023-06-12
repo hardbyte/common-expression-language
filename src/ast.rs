@@ -11,13 +11,19 @@ pub enum Atom {
     Null,
 }
 
+#[derive(Debug, PartialEq, Clone)]
+pub enum UnaryOp {
+    Neg,
+    Not,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
     Atom(Atom),
 
     Var(String),
 
-    Neg(Box<Expr>),
+    Unary(UnaryOp, Box<Expr>),
 
     Add(Box<Expr>, Box<Expr>),
     Sub(Box<Expr>, Box<Expr>),

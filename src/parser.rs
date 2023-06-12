@@ -1,12 +1,13 @@
-use crate::ast::{Atom, Expr};
+use crate::ast::{Atom, Expr, UnaryOp};
 use chumsky::Parser;
 use chumsky::prelude::*;
+use crate::ast::Expr::Unary;
 
-fn boolean<'a>() -> impl Parser<char, Expr, Error = Simple<char>> {
+fn boolean<'a>() -> impl Parser<char, Expr, Error=Simple<char>> {
     just("true").to(true).or(
         just("false").to(false)
     )
-    .map(|b| Expr::Atom(Atom::Bool(b)))
+        .map(|b| Expr::Atom(Atom::Bool(b)))
 }
 
 #[test]
@@ -29,7 +30,7 @@ fn test_boolean_parser() {
 /// - `1E10`
 /// - `1E-10`
 /// - `-1e10`
-fn numbers<'a>() -> impl Parser<char, Expr, Error = Simple<char>> {
+fn numbers<'a>() -> impl Parser<char, Expr, Error=Simple<char>> {
     let digits = text::digits::<char, Simple<char>>(10);
 
     let frac = just('.')
@@ -59,51 +60,48 @@ fn numbers<'a>() -> impl Parser<char, Expr, Error = Simple<char>> {
             } else {
                 Err(Simple::expected_input_found(span, None, None))
             }
-
         });
 
     let integer = text::int(10).map(|s: String| Expr::Atom(Atom::Int(s.as_str().parse().unwrap())));
 
     choice((floating, integer)).padded()
-
 }
 
-pub fn parser<'a>() -> impl Parser<char, Expr, Error = Simple<char>> {
+pub fn parser<'a>() -> impl Parser<char, Expr, Error=Simple<char>> {
     let ident = text::ident().padded();
 
     let expr = recursive(|expr| {
-
         let atom = choice((
-                numbers(),
-                boolean()
-                )
-            )
+            numbers(),
+            boolean()
+        )
+        )
             .or(expr.delimited_by(just('('), just(')')))
             .or(ident.map(Expr::Var));
 
-        atom
 
-        //        let op = |c| just(c).padded();
+        let op = |c| just(c).padded();
+
+        let unary = op('-')
+            .repeated()
+            .then(atom)
+            .foldr(|_op, rhs| Expr::Unary(UnaryOp::Neg, Box::new(rhs)));
+
+        // let product = unary.clone()
+        //     .then(op('*').to(Expr::Mul as fn(_, _) -> _)
+        //         .or(op('/').to(Expr::Div as fn(_, _) -> _))
+        //         .then(unary)
+        //         .repeated())
+        //     .foldl(|lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)));
         //
-        //        let unary = op('-')
-        //            .repeated()
-        //            .then(atom)
-        //            .foldr(|_op, rhs| Expr::Neg(Box::new(rhs)));
-        //
-        //        let product = unary.clone()
-        //            .then(op('*').to(Expr::Mul as fn(_, _) -> _)
-        //                .or(op('/').to(Expr::Div as fn(_, _) -> _))
-        //                .then(unary)
-        //                .repeated())
-        //            .foldl(|lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)));
-        //
-        //        let sum = product.clone()
-        //            .then(op('+').to(Expr::Add as fn(_, _) -> _)
-        //                .or(op('-').to(Expr::Sub as fn(_, _) -> _))
-        //                .then(product)
-        //                .repeated())
-        //            .foldl(|lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)));
-        //        sum
+        // let sum = product.clone()
+        //     .then(op('+').to(Expr::Add as fn(_, _) -> _)
+        //         .or(op('-').to(Expr::Sub as fn(_, _) -> _))
+        //         .then(product)
+        //         .repeated())
+        //     .foldl(|lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)));
+        // sum
+        unary
     });
 
     //    let decl = recursive(|decl| {
