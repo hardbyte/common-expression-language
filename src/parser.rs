@@ -18,6 +18,7 @@ fn test_boolean_parser() {
     assert!(boolean().parse("False").is_err());
 }
 
+
 /// Parses floating point and integer numbers and returns them as [`Expr::Atom(Atom::Double(...))`]
 /// or [`Expr::Atom(Atom::Int(...))`] types. The following formats are supported:
 /// - `1`
@@ -30,6 +31,7 @@ fn test_boolean_parser() {
 /// - `1E10`
 /// - `1E-10`
 /// - `-1e10`
+/// - `1u`
 fn numbers<'a>() -> impl Parser<char, Expr, Error=Simple<char>> {
     let digits = text::digits::<char, Simple<char>>(10);
 
@@ -62,20 +64,48 @@ fn numbers<'a>() -> impl Parser<char, Expr, Error=Simple<char>> {
             }
         });
 
-    let integer = text::int(10).map(|s: String| Expr::Atom(Atom::Int(s.as_str().parse().unwrap())));
+    let unsigned_integer = text::int::<char, Simple<char>>(10).then_ignore(just('u')).map(|s: String| Expr::Atom(Atom::UInt(s.as_str().parse().unwrap())));
+    let integer = text::int::<char, Simple<char>>(10).map(|s: String| Expr::Atom(Atom::Int(s.as_str().parse().unwrap())));
 
-    choice((floating, integer)).padded()
+    choice((unsigned_integer, floating, integer)).padded()
 }
+
+#[test]
+fn test_number_parser_unsigned_numbers() {
+    //let unsigned_integer = text::int::<char, Simple<char>>(10).then_ignore(just('u')).map(|s: String| Expr::Atom(Atom::UInt(s.as_str().parse().unwrap())));
+    //assert_eq!(unsigned_integer.parse("1u"), Ok(Expr::Atom(Atom::UInt(1))));
+    assert_eq!(numbers().parse("1u"), Ok(Expr::Atom(Atom::UInt(1))));
+    //assert_eq!(numbers().parse("1up"), Ok(Expr::Atom(Atom::UInt(1))));
+}
+
+#[test]
+fn test_number_parser_int() {
+    assert_eq!(numbers().parse("1"), Ok(Expr::Atom(Atom::Int(1))));
+
+    // Debatable if this should be allowed. Ref CEL Spec:
+    // https://github.com/google/cel-spec/blob/master/doc/langdef.md#numeric-values
+    // "negative integers are produced by the unary negation operator"
+    assert_eq!(numbers().parse("-100"), Ok(Expr::Atom(Atom::Int(-100))));
+}
+
+#[test]
+fn test_number_parser_double() {
+    assert_eq!(numbers().parse("1e3"), Ok(Expr::Atom(Atom::Double(1000.0))));
+    assert_eq!(numbers().parse("-1e-3"), Ok(Expr::Atom(Atom::Double(-0.001))));
+}
+
 
 pub fn parser<'a>() -> impl Parser<char, Expr, Error=Simple<char>> {
     let ident = text::ident().padded();
 
     let expr = recursive(|expr| {
-        let atom = choice((
+        let literal = choice((
             numbers(),
             boolean()
         )
-        )
+        );
+
+        let atom = literal
             .or(expr.delimited_by(just('('), just(')')))
             .or(ident.map(Expr::Var));
 
@@ -87,11 +117,13 @@ pub fn parser<'a>() -> impl Parser<char, Expr, Error=Simple<char>> {
             .then(atom)
             .foldr(|_op, rhs| Expr::Unary(UnaryOp::Neg, Box::new(rhs)));
 
+        // TODO: Can't seem to clone unary here
+        //let tmp = unary.clone();
+
+
         let product_div_op = op('*').to(BinaryOp::Mul)
                 .or(op('/').to(BinaryOp::Div));
 
-        // TODO: Can't seem to clone unary here
-        //let tmp = unary.clone().then(product_div_op);
 
         // let product = unary
         //     .then(product_div_op)

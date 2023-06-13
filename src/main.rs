@@ -121,10 +121,10 @@ fn main() {
             }
         }
         Err(parse_errs) => {
-            println!("An error occured!");
-            //            parse_errs
-            //            .into_iter()
-            //            .for_each(|e| println!("Parse error: {:?}", e)),
+            println!("An error occurred!");
+            parse_errs
+                .into_iter()
+                .for_each(|e| println!("Parse error: {:?}", e));
         }
     }
 }
