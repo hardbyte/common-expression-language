@@ -31,7 +31,20 @@ impl ops::Add<NumericCelType> for NumericCelType {
 
     fn add(self, other: NumericCelType) -> Self {
         match (self, other) {
+            (NumericCelType::Float(x), NumericCelType::Float(y)) => NumericCelType::Float(x + y),
+
             (x, y) => x + y
+        }
+    }
+}
+
+impl ops::Sub<NumericCelType> for NumericCelType {
+    type Output = NumericCelType;
+
+    fn sub(self, other: NumericCelType) -> Self {
+        match (self, other) {
+            (NumericCelType::Float(x), NumericCelType::Float(y)) => NumericCelType::Float(x - y),
+            (x, y) => x - y
         }
     }
 }
@@ -129,8 +142,8 @@ fn eval<'a>(expr: &'a Expr, vars: &mut Vec<(&'a String, CelType)>) -> Result<Cel
                     match op {
                         BinaryOp::Mul => Ok(CelType::NumericCelType(a * b)),
                         BinaryOp::Div => Ok(CelType::NumericCelType(a / b)),
-                        BinaryOp::Add => todo!(),
-                        BinaryOp::Sub => todo!(),
+                        BinaryOp::Add => Ok(CelType::NumericCelType(a + b)),
+                        BinaryOp::Sub => Ok(CelType::NumericCelType(a - b)),
                     }
                 }
                 (_, _) => Err(format!("Only numeric types support binary ops currently"))

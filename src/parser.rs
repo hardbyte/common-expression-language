@@ -144,15 +144,18 @@ pub fn parser<'a>() -> impl Parser<char, Expr, Error=Simple<char>> {
             .labelled("product_or_division")
             .boxed();
 
-        // let sum = product.clone()
-        //     .then(op('+').to(Expr::Add as fn(_, _) -> _)
-        //         .or(op('-').to(Expr::Sub as fn(_, _) -> _))
-        //         .then(product)
-        //         .repeated())
-        //     .foldl(|lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)));
-        // sum
+        let sum_sub_op = op('+').to(BinaryOp::Add)
+            .or(op('-').to(BinaryOp::Sub));
 
-        product
+        let sum = product.clone()
+            .then(sum_sub_op.then(product.clone()).repeated())
+            .foldl(|lhs, (op, rhs)| {
+                Expr::Binary(Box::new(lhs),op, Box::new(rhs))
+            })
+            .labelled("sub_or_sub")
+            .boxed();
+        sum
+
     });
 
     //    let decl = recursive(|decl| {

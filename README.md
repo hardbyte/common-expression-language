@@ -28,9 +28,10 @@ Learning Rust by playing with the Common Expression Language.
 ## Execution
 
 ```
-cargo run -- 10 + 2
+cargo run -- "3.0 * 5.0 * -(1.3e2 *1e-2)"
 ```
 
+Note: haven't implemented any type coercing, or much of the language beyond number literals yet! 
 
 ## References
 
