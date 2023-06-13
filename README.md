@@ -6,8 +6,8 @@ Learning Rust by playing with the Common Expression Language.
 ## Plan
 
 
-- Write a very basic CEL parser in Rust (using Chumsky)
-- Evaluate the Chumsky AST by implementing a basic Treewalk interpreter
+- Write a very basic CEL Lexer/Parser in Rust (using Chumsky)
+- Evaluate the parsed CEL AST by implementing a basic Treewalk interpreter
 
 
 ### Extensions
@@ -30,3 +30,15 @@ Learning Rust by playing with the Common Expression Language.
 ```
 cargo run -- 10 + 2
 ```
+
+
+## References
+
+Real parsers using Chumsky:
+- https://github.com/panda-re/panda/blob/dev/panda/plugins/cosi_strace/src/c_type_parser.rs
+- https://github.com/PRQL/prql/blob/main/prql-compiler/src/parser (uses a separate Chumsky Lexer to create Vec<Token>, then parses Token stream into Expr, Stmt, Literal etc)
+- [flux](https://github.com/fluxed-lang/flux/blob/main/crates/compiler/fluxc_parser/src/lib.rs) - lexed with [Logos](https://github.com/fluxed-lang/flux/blob/main/crates/compiler/fluxc_lexer/src/lib.rs) then parsed with Chumsky.
+- [Cotton](https://github.com/nanikamado/cotton/blob/main/compiler/parser/src/parse.rs) Separate Chumsky Lexer and Parser.
+-[Cornucopia](https://github.com/cornucopia-rs/cornucopia/blob/main/crates/cornucopia/src/parser.rs) parses SQL.
+- [percival](https://github.com/ekzhang/percival/blob/main/crates/percival/src/parser.rs) nice split between Lexer and Parser with WASM target.
+- [monty](https://github.com/mental32/monty/blob/master/montyc_parser/src/comb.rs) uses a lot of Rust macros
