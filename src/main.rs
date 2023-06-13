@@ -4,7 +4,7 @@ use chumsky::Parser;
 
 use std::ops;
 use std::rc::Rc;
-use cel_parser::ast::{Atom, Expr, UnaryOp};
+use cel_parser::ast::{Atom, BinaryOp, Expr, UnaryOp};
 use cel_parser::parser;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
@@ -32,6 +32,38 @@ impl ops::Add<NumericCelType> for NumericCelType {
     fn add(self, other: NumericCelType) -> Self {
         match (self, other) {
             (x, y) => x + y
+        }
+    }
+}
+
+impl ops::Mul<NumericCelType> for NumericCelType {
+    type Output = NumericCelType;
+
+    fn mul(self, other: NumericCelType) -> Self {
+        match (self, other) {
+            // TODO can I do this generically - if the types match and the underlying types implement Mul?
+            (NumericCelType::UInt(x), NumericCelType::UInt(y)) => NumericCelType::UInt(x * y),
+            (NumericCelType::Int(x), NumericCelType::Int(y)) => NumericCelType::Int(x * y),
+            (NumericCelType::Float(x), NumericCelType::Float(y)) => NumericCelType::Float(x * y),
+
+            // Fallback match
+            (x, y) => x * y
+        }
+    }
+}
+
+impl ops::Div<NumericCelType> for NumericCelType {
+    type Output = NumericCelType;
+
+    fn div(self, other: NumericCelType) -> Self {
+        match (self, other) {
+            // TODO
+            (NumericCelType::UInt(x), NumericCelType::UInt(y)) => NumericCelType::UInt(x / y),
+            (NumericCelType::Int(x), NumericCelType::Int(y)) => NumericCelType::Int(x / y),
+            (NumericCelType::Float(x), NumericCelType::Float(y)) => NumericCelType::Float(x / y),
+
+            // Fallback match
+            (x, y) => x / y
         }
     }
 }
@@ -78,13 +110,32 @@ fn eval<'a>(expr: &'a Expr, vars: &mut Vec<(&'a String, CelType)>) -> Result<Cel
                         _ => Err(format!("Can't negate non-numeric type {:?}", inner)),
                     }
                 }
-                UnaryOp::Not => todo!("Implement 'Not' unary operator"),
+                UnaryOp::Not => {
+                    match inner {
+                        CelType::Bool(b) => Ok(CelType::Bool(!b)),
+                        _ => Err(format!("Only boolean expressions can be negated"))
+                    }
+                }
             }
-
-
         }
+        Expr::Binary(lhs, op, rhs) => {
+            let eval_lhs = eval(lhs, vars)?;
+            let eval_rhs = eval(rhs, vars)?;
 
-        // Expr::Binary(op, a, b) => {
+            // Not every CelType implement binary ops. For now we check that
+            // both the lhs and rhs are of type CelType::NumericCelType
+            match (eval_lhs, eval_rhs) {
+                (CelType::NumericCelType(a), CelType::NumericCelType(b)) => {
+                    match op {
+                        BinaryOp::Mul => Ok(CelType::NumericCelType(a * b)),
+                        BinaryOp::Div => Ok(CelType::NumericCelType(a / b)),
+                        BinaryOp::Add => todo!(),
+                        BinaryOp::Sub => todo!(),
+                    }
+                }
+                (_, _) => Err(format!("Only numeric types support binary ops currently"))
+            }
+        }
         // Expr::Add(a, b) => Ok(eval(a, vars)? + eval(b, vars)?),
         // Expr::Sub(a, b) => Ok(eval(a, vars)? - eval(b, vars)?),
         // Expr::Mul(a, b) => Ok(eval(a, vars)? * eval(b, vars)?),

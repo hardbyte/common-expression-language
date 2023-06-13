@@ -67,7 +67,9 @@ fn numbers<'a>() -> impl Parser<char, Expr, Error=Simple<char>> {
     let unsigned_integer = text::int::<char, Simple<char>>(10).then_ignore(just('u')).map(|s: String| Expr::Atom(Atom::UInt(s.as_str().parse().unwrap())));
     let integer = text::int::<char, Simple<char>>(10).map(|s: String| Expr::Atom(Atom::Int(s.as_str().parse().unwrap())));
 
-    choice((unsigned_integer, floating, integer)).padded()
+    choice((unsigned_integer, floating, integer))
+        .padded()
+        .labelled("number")
 }
 
 #[test]
@@ -75,7 +77,7 @@ fn test_number_parser_unsigned_numbers() {
     //let unsigned_integer = text::int::<char, Simple<char>>(10).then_ignore(just('u')).map(|s: String| Expr::Atom(Atom::UInt(s.as_str().parse().unwrap())));
     //assert_eq!(unsigned_integer.parse("1u"), Ok(Expr::Atom(Atom::UInt(1))));
     assert_eq!(numbers().parse("1u"), Ok(Expr::Atom(Atom::UInt(1))));
-    //assert_eq!(numbers().parse("1up"), Ok(Expr::Atom(Atom::UInt(1))));
+    assert_eq!(numbers().parse("1up"), Ok(Expr::Atom(Atom::UInt(1))));
 }
 
 #[test]
@@ -96,7 +98,9 @@ fn test_number_parser_double() {
 
 
 pub fn parser<'a>() -> impl Parser<char, Expr, Error=Simple<char>> {
-    let ident = text::ident().padded();
+    let ident = text::ident::<char, Simple<char>>()
+        .padded()
+        .labelled("identifier");
 
     let expr = recursive(|expr| {
         let literal = choice((
@@ -105,32 +109,41 @@ pub fn parser<'a>() -> impl Parser<char, Expr, Error=Simple<char>> {
         )
         );
 
-        let atom = literal
-            .or(expr.delimited_by(just('('), just(')')))
-            .or(ident.map(Expr::Var));
+        let atomic_expression = literal
+            .or(expr.clone().delimited_by(just('('), just(')')))
+            .or(ident.map(Expr::Var))
+            .padded()
+            .boxed();
 
 
         let op = |c| just::<char, _, Simple<char>>(c).padded();
 
-        let unary = op('-')
-            .repeated()
-            .then(atom)
-            .foldr(|_op, rhs| Expr::Unary(UnaryOp::Neg, Box::new(rhs)));
+        let not = op('!')
+            .ignore_then(atomic_expression.clone())
+            .map(|rhs| Expr::Unary(UnaryOp::Not, Box::new(rhs)));
 
-        // TODO: Can't seem to clone unary here
-        //let tmp = unary.clone();
+        let negation = op('-')
+            .ignore_then(atomic_expression.clone())
+            .map(|rhs| Expr::Unary(UnaryOp::Neg, Box::new(rhs)))
+            .labelled("negation");
 
+        let unary = choice((not, negation))
+            .or(atomic_expression)
+            .padded()
+            .boxed();
 
-        let product_div_op = op('*').to(BinaryOp::Mul)
-                .or(op('/').to(BinaryOp::Div));
+        let product_div_op = op('*')
+            .to(BinaryOp::Mul)
+            .or(op('/').to(BinaryOp::Div));
 
+        let product = unary.clone()
+            .then(product_div_op.then(unary.clone()).repeated())   // Could have a repeated here?
+            .foldl(|lhs, (binary_op, rhs)| {
+                Expr::Binary(Box::new(lhs),binary_op, Box::new(rhs))
+            })
+            .labelled("product_or_division")
+            .boxed();
 
-        // let product = unary
-        //     .then(product_div_op)
-        //     .then(unary)
-        //     .repeated()
-        //     .foldl(|lhs, (binary_op, rhs)| Expr::Binary(Box::new(lhs),binary_op, Box::new(rhs)));
-        //
         // let sum = product.clone()
         //     .then(op('+').to(Expr::Add as fn(_, _) -> _)
         //         .or(op('-').to(Expr::Sub as fn(_, _) -> _))
@@ -138,8 +151,8 @@ pub fn parser<'a>() -> impl Parser<char, Expr, Error=Simple<char>> {
         //         .repeated())
         //     .foldl(|lhs, (op, rhs)| op(Box::new(lhs), Box::new(rhs)));
         // sum
-        unary
-        //product
+
+        product
     });
 
     //    let decl = recursive(|decl| {
