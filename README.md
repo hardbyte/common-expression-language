@@ -28,7 +28,15 @@ Learning Rust by playing with the Common Expression Language.
 ## Execution
 
 ```
-cargo run -- "3.0 * 5.0 * -(1.3e2 *1e-2)"
+cargo run -- "-(3.0 + 5.0) * 2.0e0 - -1.0"
+```
+Which outputs something like:
+```
+AST: 
+Binary(Binary(Unary(Neg, Binary(Atom(Double(3.0)), Add, Atom(Double(5.0)))), Mul, Atom(Double(2.0))), Sub, Unary(Neg, Atom(Double(1.0))))
+
+Evaluating program
+NumericCelType(Float(-15.0))
 ```
 
 Note: haven't implemented any type coercing, or much of the language beyond number literals yet! 
