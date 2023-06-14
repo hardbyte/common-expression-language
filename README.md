@@ -1,12 +1,12 @@
 
-Learning Rust by playing with the Common Expression Language.
+Learning Rust by playing with the [Common Expression Language](https://github.com/google/cel-spec).
 
 
 
 ## Plan
 
 
-- Write a very basic CEL Lexer/Parser in Rust (using Chumsky)
+- Write a very basic CEL Lexer/Parser in Rust (using [Chumsky](https://crates.io/crates/chumsky))
 - Evaluate the parsed CEL AST by implementing a basic Treewalk interpreter
 
 
@@ -20,9 +20,9 @@ Learning Rust by playing with the Common Expression Language.
 
 ## Existing Implementations
 
-- [clarkmcc/cel-rust](https://github.com/clarkmcc/cel-rust) (Maintained fork of https://github.com/clarkmcc/cel-rust)
+- [clarkmcc/cel-rust](https://github.com/clarkmcc/cel-rust) (Maintained fork of [orf/cel-rust](https://github.com/orf/cel-rust).)
   Implements separate crates for parser (using lalrpop) and interpreter (straightforward treewalk interpreter).
-- [https://github.com/thesayyn/cel-rust](thesayyn/cel-rust) (Incomplete). WASM target with online [demo](https://thesayyn.github.io/cel-rust/).
+- [thesayyn/cel-rust](https://github.com/thesayyn/cel-rust) (Incomplete). WASM target with online [demo](https://thesayyn.github.io/cel-rust/).
   Parser uses lalrpop.
   
 ## Execution
