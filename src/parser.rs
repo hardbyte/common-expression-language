@@ -101,6 +101,57 @@ fn test_number_parser_double() {
     );
 }
 
+// Ref https://github.com/01mf02/jaq/blob/main/jaq-parse/src/token.rs
+// See also https://github.com/PRQL/prql/blob/main/prql-compiler/src/parser/lexer.rs#L295-L354
+// A parser for strings; adapted from Chumsky's JSON example parser.
+fn str_() -> impl Parser<char, Expr, Error = Simple<char>> {
+    let unicode = filter::<_, _, Simple<char>>(|c: &char| c.is_ascii_hexdigit())
+        .repeated()
+        .exactly(4)
+        .collect::<String>()
+        .validate(|digits, span, emit| {
+            char::from_u32(u32::from_str_radix(&digits, 16).unwrap()).unwrap_or_else(|| {
+                emit(Simple::custom(span, "invalid unicode character"));
+                '\u{FFFD}' // unicode replacement character
+            })
+        });
+
+    let escape = just('\\').ignore_then(choice((
+        just('\\'),
+        just('/'),
+        just('"'),
+        just('b').to('\x08'),
+        just('f').to('\x0C'),
+        just('n').to('\n'),
+        just('r').to('\r'),
+        just('t').to('\t'),
+        just('u').ignore_then(unicode),
+    )));
+
+    let single_quoted_string = just('\'')
+        .ignore_then(filter(|c| *c != '\\' && *c != '\'').or(escape).repeated())
+        .then_ignore(just('\''))
+        .collect::<String>()
+        .labelled("string");
+
+    // TODO
+    // let triple_single_quoted_string = just('\'').then(just('\'')).then(just('\''))
+    //     .ignore_then(filter(|c| *c != '\\').or(escape).repeated())
+    //     .then_ignore(just('\'').then(just('\'')).then(just('\'')))
+    //     .collect::<String>()
+    //     .labelled("string");
+
+    let double_quoted_string = just('"')
+        .ignore_then(filter(|c| *c != '\\' && *c != '"').or(escape).repeated())
+        .then_ignore(just('"'))
+        .collect::<String>()
+        .labelled("string");
+
+    choice((single_quoted_string, double_quoted_string, triple_single_quoted_string))
+        .map(|s| Expr::Atom(Atom::String(s.into())))
+
+}
+
 pub fn parser() -> impl Parser<char, Expr, Error = Simple<char>> {
     let ident = text::ident::<char, Simple<char>>()
         .padded()
@@ -112,6 +163,7 @@ pub fn parser() -> impl Parser<char, Expr, Error = Simple<char>> {
         let atomic_expression = literal
             .or(expr.clone().delimited_by(just('('), just(')')))
             .or(ident.map(Expr::Var))
+            .or(str_())
             .padded()
             .boxed();
 

@@ -4,6 +4,7 @@ use chumsky::Parser;
 
 use cel_parser::ast::{Atom, BinaryOp, Expr, UnaryOp};
 use cel_parser::parser;
+
 use std::ops;
 use std::rc::Rc;
 
