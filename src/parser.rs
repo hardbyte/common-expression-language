@@ -128,26 +128,32 @@ fn str_() -> impl Parser<char, Expr, Error = Simple<char>> {
         just('u').ignore_then(unicode),
     )));
 
-    let single_quoted_string = just('\'')
+    let single_quoted_string = just("'")
         .ignore_then(filter(|c| *c != '\\' && *c != '\'').or(escape).repeated())
-        .then_ignore(just('\''))
+        .then_ignore(just("'"))
         .collect::<String>()
-        .labelled("string");
+        .labelled("single quoted string");
 
-    // TODO
-    // let triple_single_quoted_string = just('\'').then(just('\'')).then(just('\''))
-    //     .ignore_then(filter(|c| *c != '\\').or(escape).repeated())
-    //     .then_ignore(just('\'').then(just('\'')).then(just('\'')))
-    //     .collect::<String>()
-    //     .labelled("string");
+    let triple_single_quoted_string = just("'''")
+        .ignore_then(take_until(just("'''")))
+        .map(|(a, _)| a)
+        .collect::<String>()
+        .labelled("triple ' quoted string");
+
+    let triple_double_quoted_string = just("\"\"\"")
+        .ignore_then(take_until(just("\"\"\"")))
+        .map(|(a, _)| a)
+        .collect::<String>()
+        .labelled("triple \" quoted string");
 
     let double_quoted_string = just('"')
         .ignore_then(filter(|c| *c != '\\' && *c != '"').or(escape).repeated())
         .then_ignore(just('"'))
         .collect::<String>()
-        .labelled("string");
+        .labelled("double quoted string");
 
-    choice((single_quoted_string, double_quoted_string, triple_single_quoted_string))
+    choice((triple_single_quoted_string, triple_double_quoted_string,
+            single_quoted_string, double_quoted_string))
         .map(|s| Expr::Atom(Atom::String(s.into())))
 
 }
@@ -158,12 +164,11 @@ pub fn parser() -> impl Parser<char, Expr, Error = Simple<char>> {
         .labelled("identifier");
 
     let expr = recursive(|expr| {
-        let literal = choice((numbers(), boolean()));
+        let literal = choice((numbers(), boolean(), str_()));
 
         let atomic_expression = literal
             .or(expr.clone().delimited_by(just('('), just(')')))
             .or(ident.map(Expr::Var))
-            .or(str_())
             .padded()
             .boxed();
 
@@ -235,6 +240,11 @@ fn test_parser_bool() {
         parser().parse("!true"),
         Ok(Unary(UnaryOp::Not, Box::new(Expr::Atom(Atom::Bool(true)))))
     );
+}
+
+#[test]
+fn test_parser_str() {
+    assert_eq!(parser().parse("'true'"), Ok(Expr::Atom(Atom::String(String::from("true").into()))));
 }
 
 #[test]
