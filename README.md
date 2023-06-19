@@ -8,10 +8,11 @@ Learning Rust by playing with the [Common Expression Language](https://github.co
 
 - Write a very basic CEL Lexer/Parser in Rust (using [Chumsky](https://crates.io/crates/chumsky))
 - Evaluate the parsed CEL AST by implementing a basic Treewalk interpreter
-
+- Write a basic CLI for evaluating CEL expressions with data loaded from stdin or a JSON/YAML file.
 
 ### Extensions
 
+- Use a Pratt parser once Chumsky supports it (https://github.com/zesterer/chumsky/pull/380)
 - Possibly write a bytecode compiler for a simple stack based VM...  
 - Research and try the existing Rust implementations of CEL.
 - Benchmark the Cloud Custodian Python-CEL implementation against the Rust ones.
