@@ -1,11 +1,11 @@
-use ariadne::{Color, Label, Report, ReportKind, sources};
+use ariadne::{sources, Color, Label, Report, ReportKind};
 use chumsky::prelude::*;
 use chumsky::Parser;
 
-use std::ops;
-use std::rc::Rc;
 use cel_parser::ast::{Atom, BinaryOp, Expr, UnaryOp};
 use cel_parser::parser;
+use std::ops;
+use std::rc::Rc;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum NumericCelType {
@@ -33,7 +33,7 @@ impl ops::Add<NumericCelType> for NumericCelType {
         match (self, other) {
             (NumericCelType::Float(x), NumericCelType::Float(y)) => NumericCelType::Float(x + y),
 
-            (x, y) => x + y
+            (x, y) => x + y,
         }
     }
 }
@@ -44,7 +44,7 @@ impl ops::Sub<NumericCelType> for NumericCelType {
     fn sub(self, other: NumericCelType) -> Self {
         match (self, other) {
             (NumericCelType::Float(x), NumericCelType::Float(y)) => NumericCelType::Float(x - y),
-            (x, y) => x - y
+            (x, y) => x - y,
         }
     }
 }
@@ -60,7 +60,7 @@ impl ops::Mul<NumericCelType> for NumericCelType {
             (NumericCelType::Float(x), NumericCelType::Float(y)) => NumericCelType::Float(x * y),
 
             // Fallback match
-            (x, y) => x * y
+            (x, y) => x * y,
         }
     }
 }
@@ -76,7 +76,7 @@ impl ops::Div<NumericCelType> for NumericCelType {
             (NumericCelType::Float(x), NumericCelType::Float(y)) => NumericCelType::Float(x / y),
 
             // Fallback match
-            (x, y) => x / y
+            (x, y) => x / y,
         }
     }
 }
@@ -117,18 +117,14 @@ fn eval<'a>(expr: &'a Expr, vars: &mut Vec<(&'a String, CelType)>) -> Result<Cel
         Expr::Unary(op, atom) => {
             let inner = eval(atom, vars)?;
             match op {
-                UnaryOp::Neg => {
-                    match inner {
-                        CelType::NumericCelType(nct) => Ok(CelType::NumericCelType(-nct)),
-                        _ => Err(format!("Can't negate non-numeric type {:?}", inner)),
-                    }
-                }
-                UnaryOp::Not => {
-                    match inner {
-                        CelType::Bool(b) => Ok(CelType::Bool(!b)),
-                        _ => Err(format!("Only boolean expressions can be negated"))
-                    }
-                }
+                UnaryOp::Neg => match inner {
+                    CelType::NumericCelType(nct) => Ok(CelType::NumericCelType(-nct)),
+                    _ => Err(format!("Can't negate non-numeric type {:?}", inner)),
+                },
+                UnaryOp::Not => match inner {
+                    CelType::Bool(b) => Ok(CelType::Bool(!b)),
+                    _ => Err(format!("Only boolean expressions can be negated")),
+                },
             }
         }
         Expr::Binary(lhs, op, rhs) => {
@@ -138,15 +134,13 @@ fn eval<'a>(expr: &'a Expr, vars: &mut Vec<(&'a String, CelType)>) -> Result<Cel
             // Not every CelType implement binary ops. For now we check that
             // both the lhs and rhs are of type CelType::NumericCelType
             match (eval_lhs, eval_rhs) {
-                (CelType::NumericCelType(a), CelType::NumericCelType(b)) => {
-                    match op {
-                        BinaryOp::Mul => Ok(CelType::NumericCelType(a * b)),
-                        BinaryOp::Div => Ok(CelType::NumericCelType(a / b)),
-                        BinaryOp::Add => Ok(CelType::NumericCelType(a + b)),
-                        BinaryOp::Sub => Ok(CelType::NumericCelType(a - b)),
-                    }
-                }
-                (_, _) => Err(format!("Only numeric types support binary ops currently"))
+                (CelType::NumericCelType(a), CelType::NumericCelType(b)) => match op {
+                    BinaryOp::Mul => Ok(CelType::NumericCelType(a * b)),
+                    BinaryOp::Div => Ok(CelType::NumericCelType(a / b)),
+                    BinaryOp::Add => Ok(CelType::NumericCelType(a + b)),
+                    BinaryOp::Sub => Ok(CelType::NumericCelType(a - b)),
+                },
+                (_, _) => Err(format!("Only numeric types support binary ops currently")),
             }
         }
         // Expr::Add(a, b) => Ok(eval(a, vars)? + eval(b, vars)?),

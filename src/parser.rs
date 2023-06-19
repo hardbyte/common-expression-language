@@ -1,12 +1,13 @@
-use crate::ast::{Atom, BinaryOp, Expr, UnaryOp};
-use chumsky::Parser;
-use chumsky::prelude::*;
 use crate::ast::Expr::Unary;
+use crate::ast::{Atom, BinaryOp, Expr, UnaryOp};
 
-fn boolean<'a>() -> impl Parser<char, Expr, Error=Simple<char>> {
-    just("true").to(true).or(
-        just("false").to(false)
-    )
+use chumsky::prelude::*;
+use chumsky::Parser;
+
+fn boolean() -> impl Parser<char, Expr, Error = Simple<char>> {
+    just("true")
+        .to(true)
+        .or(just("false").to(false))
         .map(|b| Expr::Atom(Atom::Bool(b)))
 }
 
@@ -17,7 +18,6 @@ fn test_boolean_parser() {
     assert!(boolean().parse("tru").is_err());
     assert!(boolean().parse("False").is_err());
 }
-
 
 /// Parses floating point and integer numbers and returns them as [`Expr::Atom(Atom::Double(...))`]
 /// or [`Expr::Atom(Atom::Int(...))`] types. The following formats are supported:
@@ -32,26 +32,21 @@ fn test_boolean_parser() {
 /// - `1E-10`
 /// - `-1e10`
 /// - `1u`
-fn numbers<'a>() -> impl Parser<char, Expr, Error=Simple<char>> {
+fn numbers() -> impl Parser<char, Expr, Error = Simple<char>> {
     let digits = text::digits::<char, Simple<char>>(10);
 
-    let frac = just('.')
-        .chain::<char, _, _>(digits.clone().or_not());
+    let frac = just('.').chain::<char, _, _>(digits.clone().or_not());
 
     let exp = just('e')
         .or(just('E'))
-        .chain::<char, _, _>(
-            one_of("+-").or_not()
-        )
+        .chain::<char, _, _>(one_of("+-").or_not())
         .chain::<char, _, _>(digits.clone());
-
 
     let floating = just('-')
         .or_not()
         .chain::<char, _, _>(text::int::<char, Simple<char>>(10))
         .chain::<char, _, _>(frac.or_not().flatten())
         .chain::<char, _, _>(exp.or_not().flatten())
-
         .try_map(|chars, span| {
             let str = chars.into_iter().collect::<String>();
 
@@ -64,8 +59,11 @@ fn numbers<'a>() -> impl Parser<char, Expr, Error=Simple<char>> {
             }
         });
 
-    let unsigned_integer = text::int::<char, Simple<char>>(10).then_ignore(just('u')).map(|s: String| Expr::Atom(Atom::UInt(s.as_str().parse().unwrap())));
-    let integer = text::int::<char, Simple<char>>(10).map(|s: String| Expr::Atom(Atom::Int(s.as_str().parse().unwrap())));
+    let unsigned_integer = text::int::<char, Simple<char>>(10)
+        .then_ignore(just('u'))
+        .map(|s: String| Expr::Atom(Atom::UInt(s.as_str().parse().unwrap())));
+    let integer = text::int::<char, Simple<char>>(10)
+        .map(|s: String| Expr::Atom(Atom::Int(s.as_str().parse().unwrap())));
 
     choice((unsigned_integer, floating, integer))
         .padded()
@@ -93,28 +91,29 @@ fn test_number_parser_int() {
 #[test]
 fn test_number_parser_double() {
     assert_eq!(numbers().parse("1e3"), Ok(Expr::Atom(Atom::Double(1000.0))));
-    assert_eq!(numbers().parse("-1e-3"), Ok(Expr::Atom(Atom::Double(-0.001))));
+    assert_eq!(
+        numbers().parse("-1e-3"),
+        Ok(Expr::Atom(Atom::Double(-0.001)))
+    );
+    assert_eq!(
+        numbers().parse("-1.4e-3"),
+        Ok(Expr::Atom(Atom::Double(-0.0014)))
+    );
 }
 
-
-pub fn parser<'a>() -> impl Parser<char, Expr, Error=Simple<char>> {
+pub fn parser() -> impl Parser<char, Expr, Error = Simple<char>> {
     let ident = text::ident::<char, Simple<char>>()
         .padded()
         .labelled("identifier");
 
     let expr = recursive(|expr| {
-        let literal = choice((
-            numbers(),
-            boolean()
-        )
-        );
+        let literal = choice((numbers(), boolean()));
 
         let atomic_expression = literal
             .or(expr.clone().delimited_by(just('('), just(')')))
             .or(ident.map(Expr::Var))
             .padded()
             .boxed();
-
 
         let op = |c| just::<char, _, Simple<char>>(c).padded();
 
@@ -132,30 +131,24 @@ pub fn parser<'a>() -> impl Parser<char, Expr, Error=Simple<char>> {
             .padded()
             .boxed();
 
-        let product_div_op = op('*')
-            .to(BinaryOp::Mul)
-            .or(op('/').to(BinaryOp::Div));
+        let product_div_op = op('*').to(BinaryOp::Mul).or(op('/').to(BinaryOp::Div));
 
-        let product = unary.clone()
-            .then(product_div_op.then(unary.clone()).repeated())   // Could have a repeated here?
-            .foldl(|lhs, (binary_op, rhs)| {
-                Expr::Binary(Box::new(lhs),binary_op, Box::new(rhs))
-            })
+        let product = unary
+            .clone()
+            .then(product_div_op.then(unary.clone()).repeated()) // Could have a repeated here?
+            .foldl(|lhs, (binary_op, rhs)| Expr::Binary(Box::new(lhs), binary_op, Box::new(rhs)))
             .labelled("product_or_division")
             .boxed();
 
-        let sum_sub_op = op('+').to(BinaryOp::Add)
-            .or(op('-').to(BinaryOp::Sub));
+        let sum_sub_op = op('+').to(BinaryOp::Add).or(op('-').to(BinaryOp::Sub));
 
-        let sum = product.clone()
+        let sum = product
+            .clone()
             .then(sum_sub_op.then(product.clone()).repeated())
-            .foldl(|lhs, (op, rhs)| {
-                Expr::Binary(Box::new(lhs),op, Box::new(rhs))
-            })
+            .foldl(|lhs, (op, rhs)| Expr::Binary(Box::new(lhs), op, Box::new(rhs)))
             .labelled("sub_or_sub")
             .boxed();
         sum
-
     });
 
     //    let decl = recursive(|decl| {
@@ -176,4 +169,124 @@ pub fn parser<'a>() -> impl Parser<char, Expr, Error=Simple<char>> {
 
     //    decl.then_ignore(end())
     expr.then_ignore(end())
+}
+
+#[test]
+fn test_parser_bool() {
+    assert_eq!(parser().parse("true"), Ok(Expr::Atom(Atom::Bool(true))));
+    assert_eq!(parser().parse("false"), Ok(Expr::Atom(Atom::Bool(false))));
+    assert_eq!(
+        parser().parse("!false"),
+        Ok(Unary(UnaryOp::Not, Box::new(Expr::Atom(Atom::Bool(false)))))
+    );
+    assert_eq!(
+        parser().parse("!true"),
+        Ok(Unary(UnaryOp::Not, Box::new(Expr::Atom(Atom::Bool(true)))))
+    );
+}
+
+#[test]
+fn test_parser_positive_numbers() {
+    assert_eq!(parser().parse("1"), Ok(Expr::Atom(Atom::Int(1))));
+    assert_eq!(parser().parse("1u"), Ok(Expr::Atom(Atom::UInt(1))));
+    assert_eq!(parser().parse("1.0"), Ok(Expr::Atom(Atom::Double(1.0))));
+}
+
+#[test]
+fn test_parser_negative_numbers() {
+    assert_eq!(
+        parser().parse("-1"),
+        Ok(Expr::Unary(
+            UnaryOp::Neg,
+            Box::new(Expr::Atom(Atom::Int(1)))
+        ))
+    );
+    assert_eq!(
+        parser().parse("-1u"),
+        Ok(Expr::Unary(
+            UnaryOp::Neg,
+            Box::new(Expr::Atom(Atom::UInt(1)))
+        ))
+    );
+    assert_eq!(
+        parser().parse("-1e3"),
+        Ok(Expr::Unary(
+            UnaryOp::Neg,
+            Box::new(Expr::Atom(Atom::Double(1000.0)))
+        ))
+    );
+    assert_eq!(
+        parser().parse("-1e-3"),
+        Ok(Expr::Unary(
+            UnaryOp::Neg,
+            Box::new(Expr::Atom(Atom::Double(0.001)))
+        ))
+    );
+    assert_eq!(
+        parser().parse("-1.4e-3"),
+        Ok(Expr::Unary(
+            UnaryOp::Neg,
+            Box::new(Expr::Atom(Atom::Double(0.0014)))
+        ))
+    );
+}
+
+#[test]
+fn test_parser_delimited_expressions() {
+    assert_eq!(
+        parser().parse("(-((1)))"),
+        Ok(Expr::Unary(
+            UnaryOp::Neg,
+            Box::new(Expr::Atom(Atom::Int(1)))
+        ))
+    );
+}
+
+#[test]
+fn test_parser_binary_product_expressions() {
+    assert_eq!(
+        parser().parse("2 * 3"),
+        Ok(Expr::Binary(
+            Box::new(Expr::Atom(Atom::Int(2))),
+            BinaryOp::Mul,
+            Box::new(Expr::Atom(Atom::Int(3)))
+        ))
+    );
+    assert_eq!(
+        parser().parse("2 * -3"),
+        Ok(Expr::Binary(
+            Box::new(Expr::Atom(Atom::Int(2))),
+            BinaryOp::Mul,
+            Box::new(Unary(UnaryOp::Neg, Box::new(Expr::Atom(Atom::Int(3)))))
+        ))
+    );
+
+    assert_eq!(
+        parser().parse("2 / -3"),
+        Ok(Expr::Binary(
+            Box::new(Expr::Atom(Atom::Int(2))),
+            BinaryOp::Div,
+            Box::new(Unary(UnaryOp::Neg, Box::new(Expr::Atom(Atom::Int(3)))))
+        ))
+    );
+}
+
+#[test]
+fn test_parser_sum_expressions() {
+    assert_eq!(
+        parser().parse("2 + 3"),
+        Ok(Expr::Binary(
+            Box::new(Expr::Atom(Atom::Int(2))),
+            BinaryOp::Add,
+            Box::new(Expr::Atom(Atom::Int(3)))
+        ))
+    );
+    assert_eq!(
+        parser().parse("2 - -3"),
+        Ok(Expr::Binary(
+            Box::new(Expr::Atom(Atom::Int(2))),
+            BinaryOp::Sub,
+            Box::new(Unary(UnaryOp::Neg, Box::new(Expr::Atom(Atom::Int(3)))))
+        ))
+    );
 }
