@@ -152,10 +152,13 @@ fn str_() -> impl Parser<char, Expr, Error = Simple<char>> {
         .collect::<String>()
         .labelled("double quoted string");
 
-    choice((triple_single_quoted_string, triple_double_quoted_string,
-            single_quoted_string, double_quoted_string))
-        .map(|s| Expr::Atom(Atom::String(s.into())))
-
+    choice((
+        triple_single_quoted_string,
+        triple_double_quoted_string,
+        single_quoted_string,
+        double_quoted_string,
+    ))
+    .map(|s| Expr::Atom(Atom::String(s.into())))
 }
 
 pub fn parser() -> impl Parser<char, Expr, Error = Simple<char>> {
@@ -244,7 +247,10 @@ fn test_parser_bool() {
 
 #[test]
 fn test_parser_str() {
-    assert_eq!(parser().parse("'true'"), Ok(Expr::Atom(Atom::String(String::from("true").into()))));
+    assert_eq!(
+        parser().parse("'true'"),
+        Ok(Expr::Atom(Atom::String(String::from("true").into())))
+    );
 }
 
 #[test]
