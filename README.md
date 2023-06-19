@@ -13,7 +13,7 @@ Learning Rust by playing with the [Common Expression Language](https://github.co
 ### Extensions
 
 - Use a Pratt parser once Chumsky supports it (https://github.com/zesterer/chumsky/pull/380)
-- Possibly write a bytecode compiler for a simple stack based VM...  
+- Possibly write a bytecode compiler for a simple stack based VM...
 - Research and try the existing Rust implementations of CEL.
 - Benchmark the Cloud Custodian Python-CEL implementation against the Rust ones.
 - If performance is significantly better, consider wrapping an existing Rust one for Python.
@@ -25,7 +25,7 @@ Learning Rust by playing with the [Common Expression Language](https://github.co
   Implements separate crates for parser (using lalrpop) and interpreter (straightforward treewalk interpreter).
 - [thesayyn/cel-rust](https://github.com/thesayyn/cel-rust) (Incomplete). WASM target with online [demo](https://thesayyn.github.io/cel-rust/).
   Parser uses lalrpop.
-  
+
 ## Execution
 
 ```
@@ -33,14 +33,14 @@ cargo run -- "-(3.0 + 5.0) * 2.0e0 - -1.0"
 ```
 Which outputs something like:
 ```
-AST: 
+AST:
 Binary(Binary(Unary(Neg, Binary(Atom(Double(3.0)), Add, Atom(Double(5.0)))), Mul, Atom(Double(2.0))), Sub, Unary(Neg, Atom(Double(1.0))))
 
 Evaluating program
 NumericCelType(Float(-15.0))
 ```
 
-Note: haven't implemented any type coercing, or much of the language beyond number literals yet! 
+Note: haven't implemented any type coercing, or much of the language beyond number literals yet!
 
 ## References
 
