@@ -116,6 +116,28 @@ fn str_inner(
             })
         });
 
+    let hex_code_point = filter::<_, _, Simple<char>>(|c: &char| c.is_ascii_hexdigit())
+        .repeated()
+        .exactly(2)
+        .collect::<String>()
+        .validate(|digits, span, emit| {
+            char::from_u32(u32::from_str_radix(&digits, 16).unwrap()).unwrap_or_else(|| {
+                emit(Simple::custom(span, "invalid unicode character"));
+                '\u{FFFD}' // unicode replacement character
+            })
+        });
+
+    let octal_code_point = filter::<_, _, Simple<char>>(|c: &char| c.is_ascii_digit())
+        .repeated()
+        .exactly(3)
+        .collect::<String>()
+        .validate(|digits, span, emit| {
+            char::from_u32(u32::from_str_radix(&digits, 8).unwrap()).unwrap_or_else(|| {
+                emit(Simple::custom(span, "invalid unicode character"));
+                '\u{FFFD}' // unicode replacement character
+            })
+        });
+
     let escape = just('\\').ignore_then(choice((
         just('\\'),
         just('/'),
@@ -126,6 +148,8 @@ fn str_inner(
         just('r').to('\r'),
         just('t').to('\t'),
         just('u').ignore_then(unicode),
+        just('x').or(just('X')).ignore_then(hex_code_point),
+        octal_code_point,
     )));
 
     let mut forbidden = just(delimiter).boxed();
@@ -193,6 +217,10 @@ fn test_str_inner_parser() {
         str_inner("'''", true).labelled("triple ' quoted escaped string");
 
     assert_eq!(
+        triple_single_quoted_escaped_string.parse(r"''''''"),
+        Ok(String::from("").into())
+    );
+    assert_eq!(
         triple_single_quoted_escaped_string.parse(r"'''hello'''"),
         Ok(String::from("hello").into())
     );
@@ -200,6 +228,22 @@ fn test_str_inner_parser() {
     assert_eq!(
         triple_single_quoted_escaped_string.parse(r"'''\n'''"),
         Ok(String::from("\n").into())
+    );
+    assert_eq!(
+        triple_single_quoted_escaped_string.parse(r"'''x''x'''"),
+        Ok(String::from("x''x").into())
+    );
+    assert_eq!(
+        triple_single_quoted_escaped_string.parse(r"''' '''"),
+        Ok(String::from(" ").into())
+    );
+    assert_eq!(
+        triple_single_quoted_escaped_string.parse(r"'''\xFF'''"),
+        Ok(String::from("ÿ").into())
+    );
+    assert_eq!(
+        triple_single_quoted_escaped_string.parse(r"'''\377'''"),
+        Ok(String::from("ÿ").into())
     );
 }
 
