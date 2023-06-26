@@ -101,10 +101,10 @@ fn test_number_parser_double() {
     );
 }
 
-// Ref https://github.com/01mf02/jaq/blob/main/jaq-parse/src/token.rs
-// See also https://github.com/PRQL/prql/blob/main/prql-compiler/src/parser/lexer.rs#L295-L354
-// A parser for strings; adapted from Chumsky's JSON example parser.
-fn str_() -> impl Parser<char, Expr, Error = Simple<char>> {
+fn str_inner(
+    delimiter: &str,
+    escaping: bool,
+) -> impl Parser<char, String, Error = Simple<char>> + '_ {
     let unicode = filter::<_, _, Simple<char>>(|c: &char| c.is_ascii_hexdigit())
         .repeated()
         .exactly(4)
@@ -128,37 +128,141 @@ fn str_() -> impl Parser<char, Expr, Error = Simple<char>> {
         just('u').ignore_then(unicode),
     )));
 
-    let single_quoted_string = just("'")
-        .ignore_then(filter(|c| *c != '\\' && *c != '\'').or(escape).repeated())
-        .then_ignore(just("'"))
-        .collect::<String>()
-        .labelled("single quoted string");
+    let mut forbidden = just(delimiter).boxed();
+    let mut inner_string = forbidden.not().boxed();
 
-    let triple_single_quoted_string = just("'''")
-        .ignore_then(take_until(just("'''")))
-        .map(|(a, _)| a)
+    if escaping {
+        forbidden = just(delimiter).or(just("\\")).boxed();
+        inner_string = forbidden.not().or(escape).boxed();
+    }
+
+    inner_string
+        .repeated()
+        .delimited_by(just(delimiter), just(delimiter))
         .collect::<String>()
+}
+
+// Ref https://github.com/01mf02/jaq/blob/main/jaq-parse/src/token.rs
+// See also https://github.com/PRQL/prql/blob/main/prql-compiler/src/parser/lexer.rs#L295-L354
+// A parser for strings; adapted from Chumsky's JSON example parser.
+fn str_() -> impl Parser<char, Expr, Error = Simple<char>> {
+    let single_quoted_string = str_inner("'", true).labelled("single quoted string");
+
+    let double_quoted_string = str_inner("\"", true).labelled("double quoted string");
+
+    // Raw strings don't interpret escape sequences.
+
+    let single_quoted_raw_string = just("r")
+        .or(just("R"))
+        .ignore_then(str_inner("'", false))
+        .labelled("single quoted raw string");
+
+    let double_quoted_raw_string = just("r")
+        .or(just("R"))
+        .ignore_then(str_inner("\"", false))
+        .labelled("double quoted raw string");
+
+    let triple_single_quoted_raw_string = just("r")
+        .or(just("R"))
+        .ignore_then(str_inner("'''", false))
         .labelled("triple ' quoted string");
 
-    let triple_double_quoted_string = just("\"\"\"")
-        .ignore_then(take_until(just("\"\"\"")))
-        .map(|(a, _)| a)
-        .collect::<String>()
-        .labelled("triple \" quoted string");
+    let triple_single_quoted_escaped_string =
+        str_inner("'''", true).labelled("triple ' quoted escaped string");
 
-    let double_quoted_string = just('"')
-        .ignore_then(filter(|c| *c != '\\' && *c != '"').or(escape).repeated())
-        .then_ignore(just('"'))
-        .collect::<String>()
-        .labelled("double quoted string");
+    let triple_double_quoted_string = str_inner("\"\"\"", true).labelled("triple \" quoted string");
 
     choice((
-        triple_single_quoted_string,
+        triple_single_quoted_raw_string,
+        triple_single_quoted_escaped_string,
         triple_double_quoted_string,
+        single_quoted_raw_string,
         single_quoted_string,
+        double_quoted_raw_string,
         double_quoted_string,
     ))
     .map(|s| Expr::Atom(Atom::String(s.into())))
+}
+
+#[test]
+fn test_str_inner_parser() {
+    // Taking the idea from
+    // REF: https://github.com/PRQL/prql/blob/main/prql-compiler/src/parser/lexer.rs#L295
+
+    let triple_single_quoted_escaped_string =
+        str_inner("'''", true).labelled("triple ' quoted escaped string");
+
+    assert_eq!(
+        triple_single_quoted_escaped_string.parse(r"'''hello'''"),
+        Ok(String::from("hello").into())
+    );
+    // Check triple quoted strings interpret escape sequences (note this is a rust raw string, not a CEL raw string)
+    assert_eq!(
+        triple_single_quoted_escaped_string.parse(r"'''\n'''"),
+        Ok(String::from("\n").into())
+    );
+}
+
+#[test]
+fn test_str_parser() {
+    assert_eq!(
+        str_().parse("'Hello!'"),
+        Ok(Expr::Atom(Atom::String(String::from("Hello!").into())))
+    );
+    assert_eq!(
+        str_().parse("\"Hello!\""),
+        Ok(Expr::Atom(Atom::String(String::from("Hello!").into())))
+    );
+    assert_eq!(
+        str_().parse("'\n'"),
+        Ok(Expr::Atom(Atom::String(String::from("\n").into())))
+    );
+    assert_eq!(
+        str_().parse(r"'\n'"),
+        Ok(Expr::Atom(Atom::String(String::from("\n").into())))
+    );
+
+    assert_eq!(
+        str_().parse(r"'''hello'''"),
+        Ok(Expr::Atom(Atom::String(String::from("hello").into())))
+    );
+    // Check triple quoted strings interpret escape sequences (note this is a rust raw string, not a CEL raw string)
+    assert_eq!(
+        str_().parse(r"'''\n'''"),
+        Ok(Expr::Atom(Atom::String(String::from("\n").into())))
+    );
+}
+
+#[test]
+fn test_raw_str_parser() {
+    assert_eq!(
+        str_().parse(r"r'\n'"),
+        Ok(Expr::Atom(Atom::String(String::from("\\n").into())))
+    );
+    assert_eq!(
+        str_().parse(r"R'\n'"),
+        Ok(Expr::Atom(Atom::String(String::from("\\n").into())))
+    );
+    assert_eq!(
+        str_().parse("r'1'"),
+        Ok(Expr::Atom(Atom::String(String::from("1").into())))
+    );
+    assert_eq!(
+        str_().parse("r\"Hello!\""),
+        Ok(Expr::Atom(Atom::String(String::from("Hello!").into())))
+    );
+    assert_eq!(
+        str_().parse("R\"Hello!\""),
+        Ok(Expr::Atom(Atom::String(String::from("Hello!").into())))
+    );
+    assert_eq!(
+        str_().parse(r"r'''hello'''"),
+        Ok(Expr::Atom(Atom::String(String::from("hello").into())))
+    );
+    assert_eq!(
+        str_().parse(r"r'''\n'''"),
+        Ok(Expr::Atom(Atom::String(String::from("\\n").into())))
+    );
 }
 
 pub fn parser() -> impl Parser<char, Expr, Error = Simple<char>> {

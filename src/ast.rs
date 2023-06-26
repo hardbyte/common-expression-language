@@ -5,6 +5,7 @@ pub enum Atom {
     Int(i64),
     UInt(u64),
     Double(f64),
+    // A reference counted String
     String(Rc<String>),
     Bytes(Rc<Vec<u8>>),
     Bool(bool),
