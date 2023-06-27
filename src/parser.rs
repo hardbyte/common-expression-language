@@ -334,17 +334,13 @@ pub fn parser() -> impl Parser<char, Expr, Error = Simple<char>> {
             .then_ignore(just(':'))
             .then(expr.clone())
             .padded();
-        //.map(|(key, value)| (key, value));
 
         let map = map_item
             .clone()
             .separated_by(just(','))
-            //.collect::<Vec<_>>()
             .delimited_by(just('{'), just('}'))
             .padded()
-            .map(|items|
-                // items is a Vec of (Expr, Expr)
-                Expr::Map(items));
+            .map(|items| Expr::Map(items));
 
         let atomic_expression = literal
             .or(expr.clone().delimited_by(just('('), just(')')))
@@ -390,23 +386,6 @@ pub fn parser() -> impl Parser<char, Expr, Error = Simple<char>> {
         sum
     });
 
-    //    let decl = recursive(|decl| {
-    //        let r#let = text::keyword("let")
-    //            .ignore_then(ident)
-    //            .then_ignore(just('='))
-    //            .then(expr.clone())
-    //            .then_ignore(just(';'))
-    //            .then(decl)
-    //            .map(|((name, rhs), then)| Expr::Let {
-    //                name,
-    //                rhs: Box::new(rhs),
-    //                then: Box::new(then)
-    //            });
-    //
-    //        r#let.or(expr).padded()
-    //    });
-
-    //    decl.then_ignore(end())
     expr.then_ignore(end())
 }
 

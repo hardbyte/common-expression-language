@@ -166,10 +166,7 @@ fn eval<'a>(expr: &'a Expr, vars: &mut Vec<(&'a String, CelType)>) -> Result<Cel
         Expr::Binary(lhs, op, rhs) => {
             let eval_lhs = eval(lhs, vars)?;
             let eval_rhs = eval(rhs, vars)?;
-            println!(
-                "Evaluating binary op. lhs: {:?}, op: {:?}, rhs: {:?}",
-                eval_lhs, op, eval_rhs
-            );
+
             // Not every CelType implement binary ops. For now we check that
             // both the lhs and rhs are of type CelType::NumericCelType
             match (eval_lhs, eval_rhs) {
@@ -182,23 +179,7 @@ fn eval<'a>(expr: &'a Expr, vars: &mut Vec<(&'a String, CelType)>) -> Result<Cel
                 (_, _) => Err(format!("Only numeric types support binary ops currently")),
             }
         }
-        // Expr::Add(a, b) => Ok(eval(a, vars)? + eval(b, vars)?),
-        // Expr::Sub(a, b) => Ok(eval(a, vars)? - eval(b, vars)?),
-        // Expr::Mul(a, b) => Ok(eval(a, vars)? * eval(b, vars)?),
-        // Expr::Div(a, b) => Ok(eval(a, vars)? / eval(b, vars)?),
-        //
-        //        Expr::Var(name) => if let Some((_, val)) = vars.iter().rev().find(|(var, _)| *var == name) {
-        //            Ok(*val)
-        //        } else {
-        //            Err(format!("Can't find variables `{}` in scope", name))
-        //        },
-        //        Expr::Let {name, rhs, then } => {
-        //            let rhs = eval(rhs, vars)?;
-        //            vars.push((name, rhs));
-        //            let output = eval(then, vars);
-        //            vars.pop();
-        //            output
-        //        },
+
         Expr::List(exprs) => {
             let mut output: Vec<CelType> = Vec::with_capacity(exprs.len());
             // Evaluate each expression in the list
@@ -208,6 +189,7 @@ fn eval<'a>(expr: &'a Expr, vars: &mut Vec<(&'a String, CelType)>) -> Result<Cel
 
             Ok(CelType::List(Rc::new(output)))
         }
+
         Expr::Map(entries) => {
             let mut output: HashMap<CelMapKey, CelType> = HashMap::with_capacity(entries.len());
             // Evaluate each key and expression in the list
@@ -220,7 +202,7 @@ fn eval<'a>(expr: &'a Expr, vars: &mut Vec<(&'a String, CelType)>) -> Result<Cel
                 map: Rc::new(output),
             }))
         }
-        _ => todo!(), // We'll handle other cases later
+        _ => todo!(),
     }
 }
 
