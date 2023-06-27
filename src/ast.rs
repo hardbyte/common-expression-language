@@ -50,12 +50,4 @@ pub enum Expr {
 
     // Associative arrays with int, uint, bool, or string keys
     Map(Vec<(Expr, Expr)>),
-
-    Call(String, Vec<Expr>),
-
-    Let {
-        name: String,
-        rhs: Box<Expr>,
-        then: Box<Expr>,
-    },
 }

@@ -3,8 +3,9 @@ use chumsky::prelude::*;
 use chumsky::Parser;
 use std::cmp::Ordering;
 use std::collections::HashMap;
+use std::fmt::{Debug, Formatter};
 
-use cel_parser::ast::{Atom, BinaryOp, Expr, UnaryOp};
+use cel_parser::ast::{Atom, BinaryOp, Expr, MemberOp, UnaryOp};
 use cel_parser::parser;
 
 use std::ops;
@@ -103,6 +104,32 @@ impl PartialOrd for CelMap {
     }
 }
 
+#[derive(Clone)]
+pub struct CelFunction {
+    //pub args: Rc<HashMap<String, CelType>>,
+    pub function: Rc<dyn Fn(Vec<CelType>) -> CelType>,
+}
+
+impl Debug for CelFunction {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CelFunction")
+            //.field("args", &self.args)
+            .field("function", &"function")
+            .finish()
+    }
+}
+
+impl PartialEq for CelFunction {
+    fn eq(&self, other: &Self) -> bool {
+        return false;
+    }
+}
+impl PartialOrd for CelFunction {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        None
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum CelType {
     Null,
@@ -112,7 +139,8 @@ pub enum CelType {
     String(Rc<String>),
     List(Rc<Vec<CelType>>),
     Map(CelMap),
-    //    Function(Rc<String>, Option<Box<CelType>>),
+
+    Function(CelFunction),
 }
 
 impl From<CelType> for CelMapKey {
@@ -149,6 +177,34 @@ impl From<&Atom> for CelType {
 fn eval<'a>(expr: &'a Expr, vars: &mut Vec<(&'a String, CelType)>) -> Result<CelType, String> {
     match expr {
         Expr::Atom(atom) => Ok(atom.into()),
+        Expr::Var(name) => {
+            for (var_name, var_value) in vars.iter() {
+                if *var_name == name {
+                    return Ok(var_value.clone());
+                }
+            }
+            // Built in functions should be in a `Context` struct but we will do some
+            // simple ones here for now
+            if name == "size" {
+                // For now just size of string
+                return Ok(CelType::Function(CelFunction {
+                    function: Rc::new(|args| {
+                        let s = args.get(0).unwrap();
+                        match s {
+                            CelType::String(s) => {
+                                CelType::NumericCelType(NumericCelType::UInt(s.len() as u64))
+                            }
+                            _ => unimplemented!(),
+                        }
+                    }),
+                }));
+            }
+            // Macros are not supported yet
+            if name == "has" {
+                return Err(format!("Macro {} not implemented", name));
+            }
+            Err(format!("Variable {} not found", name))
+        }
 
         Expr::Unary(op, atom) => {
             let inner = eval(atom, vars)?;
@@ -202,7 +258,26 @@ fn eval<'a>(expr: &'a Expr, vars: &mut Vec<(&'a String, CelType)>) -> Result<Cel
                 map: Rc::new(output),
             }))
         }
-        _ => todo!(),
+        Expr::Member(lhs, memberOp) => {
+            println!("MemberOp: {:?}", memberOp);
+
+            let lhs = eval(lhs, vars)?;
+            println!("LHS: {:?}", lhs);
+            match (lhs, memberOp) {
+                (CelType::Function(f), MemberOp::Call(args)) => {
+                    let mut evaluated_arguments: Vec<CelType> = Vec::with_capacity(args.len());
+                    // Evaluate each expression in the list of arguments
+                    for expr in args {
+                        evaluated_arguments.push(eval(expr, vars)?);
+                    }
+
+                    // Call the function (evaluate the output?)
+                    return Ok((f.function)(evaluated_arguments));
+                }
+                (_, _) => Err(format!("Need to handle member operation")),
+            }
+        }
+        _ => Err(format!("Need to handle member operation")),
     }
 }
 
@@ -215,7 +290,16 @@ fn main() {
         Ok(ast) => {
             println!("AST: \n{:?}\n", ast);
             println!("Evaluating program");
-            match eval(&ast, &mut Vec::new()) {
+            let default_vars = &mut Vec::new();
+
+            // Create hard coded variables for builtin macros
+            let test_var_name = String::from("has");
+            default_vars.push((
+                &test_var_name,
+                CelType::NumericCelType(NumericCelType::Int(1)),
+            ));
+
+            match eval(&ast, default_vars) {
                 Ok(output) => println!("{:?}", output),
                 Err(eval_err) => println!("Evaluation error: {}", eval_err),
             }

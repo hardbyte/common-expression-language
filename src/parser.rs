@@ -1,5 +1,5 @@
 use crate::ast::Expr::Unary;
-use crate::ast::{Atom, BinaryOp, Expr, UnaryOp};
+use crate::ast::{Atom, BinaryOp, Expr, MemberOp, UnaryOp};
 
 use chumsky::prelude::*;
 use chumsky::Parser;
@@ -329,6 +329,15 @@ pub fn parser() -> impl Parser<char, Expr, Error = Simple<char>> {
             .separated_by(just(','))
             .collect::<Vec<_>>();
 
+        let function_call = ident
+            .clone()
+            .then_ignore(just('('))
+            .then(items.clone())
+            .then_ignore(just(')'))
+            .map(|(name, args)| Expr::Member(Box::new(name), Box::new(MemberOp::Call(args))))
+            .padded()
+            .labelled("function call");
+
         let list = items
             .clone()
             .delimited_by(just('['), just(']'))
@@ -347,9 +356,13 @@ pub fn parser() -> impl Parser<char, Expr, Error = Simple<char>> {
             .padded()
             .map(|items| Expr::Map(items));
 
-        let atomic_expression = literal
-            .or(expr.clone().delimited_by(just('('), just(')')))
+        let atomic_expression = function_call
+            .or(literal)
             .or(ident)
+            .or(expr
+                .clone()
+                .delimited_by(just('('), just(')'))
+                .labelled("parenthesized expression"))
             .or(list)
             .or(map)
             .padded()
@@ -388,6 +401,7 @@ pub fn parser() -> impl Parser<char, Expr, Error = Simple<char>> {
             .foldl(|lhs, (op, rhs)| Expr::Binary(Box::new(lhs), op, Box::new(rhs)))
             .labelled("sub_or_sub")
             .boxed();
+
         sum
     });
 
