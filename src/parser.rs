@@ -449,12 +449,9 @@ fn test_parser_str() {
 fn test_parser_raw_strings() {
     assert_eq!(
         parser().parse("r'\n'"),
-        Ok(Expr::Atom(Atom::String(
-            String::from("\n").into()
-        )))
+        Ok(Expr::Atom(Atom::String(String::from("\n").into())))
     );
 }
-
 
 #[test]
 fn test_parser_positive_numbers() {

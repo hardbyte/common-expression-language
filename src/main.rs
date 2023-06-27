@@ -277,11 +277,9 @@ fn eval<'a>(expr: &'a Expr, vars: &mut Vec<(&'a String, CelType)>) -> Result<Cel
 
                     // Temporarily just return a true
                     //return Ok(CelType::Bool(true));
-
-                },
-                _ => Err(format!("Can't call this type"))
+                }
+                _ => Err(format!("Can't call this type")),
             }
-
         }
         _ => Err(format!("Need to handle member operation")),
     }
