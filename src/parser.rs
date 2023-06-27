@@ -312,16 +312,32 @@ fn test_raw_str_parser() {
 pub fn parser() -> impl Parser<char, Expr, Error = Simple<char>> {
     let ident = text::ident::<char, Simple<char>>()
         .padded()
+        .map(Expr::Var)
         .labelled("identifier");
+
+
 
     let expr = recursive(|expr| {
         let literal = choice((numbers(), boolean(), str_()));
 
+        let list_items = expr.clone()
+            .padded()
+            .separated_by(just(','))
+            .collect::<Vec<_>>();
+
+
+        let list = list_items.clone()
+            .delimited_by(just('['), just(']'))
+            .map(|items| Expr::List(items));
+
+
         let atomic_expression = literal
             .or(expr.clone().delimited_by(just('('), just(')')))
-            .or(ident.map(Expr::Var))
+            .or(ident)
+            .or(list)
             .padded()
             .boxed();
+
 
         let op = |c| just::<char, _, Simple<char>>(c).padded();
 

@@ -36,6 +36,8 @@ pub enum Expr {
 
     Binary(Box<Expr>, BinaryOp, Box<Expr>),
 
+    List(Vec<Expr>),
+
     Call(String, Vec<Expr>),
 
     Let {

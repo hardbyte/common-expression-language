@@ -91,7 +91,7 @@ pub enum CelType {
 
     Bytes(Rc<Vec<u8>>),
     String(Rc<String>),
-    //    List(Rc<[CelType]>),
+    List(Rc<Vec<CelType>>),
     //    Map(CelMap),
     //    Function(Rc<String>, Option<Box<CelType>>),
 }
@@ -161,6 +161,15 @@ fn eval<'a>(expr: &'a Expr, vars: &mut Vec<(&'a String, CelType)>) -> Result<Cel
         //            vars.pop();
         //            output
         //        },
+        Expr::List(exprs) => {
+            let mut output: Vec<CelType> = Vec::with_capacity(exprs.len());
+            // Evaluate each expression in the list
+            for expr in exprs {
+                output.push(eval(expr, vars)?);
+            }
+
+            Ok(CelType::List(Rc::new(output)))
+        }
         _ => todo!(), // We'll handle other cases later
     }
 }
