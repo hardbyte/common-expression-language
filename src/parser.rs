@@ -334,7 +334,7 @@ pub fn parser() -> impl Parser<char, Expr, Error = Simple<char>> {
             .then_ignore(just('('))
             .then(items.clone())
             .then_ignore(just(')'))
-            .map(|(name, args)| Expr::Member(Box::new(name), Box::new(MemberOp::Call(args))))
+            .map(|(name, args)| Expr::Member(Box::new(name), MemberOp::Call(args)))
             .padded()
             .labelled("function call");
 
@@ -425,10 +425,36 @@ fn test_parser_bool() {
 #[test]
 fn test_parser_str() {
     assert_eq!(
+        parser().parse("'hi'"),
+        Ok(Expr::Atom(Atom::String(String::from("hi").into())))
+    );
+    assert_eq!(
         parser().parse("'true'"),
         Ok(Expr::Atom(Atom::String(String::from("true").into())))
     );
+
+    assert_eq!(
+        parser().parse("'''true\n'''"),
+        Ok(Expr::Atom(Atom::String(String::from("true\n").into())))
+    );
+    assert_eq!(
+        parser().parse(r##""""He said "Hi I'm Brian".""""##),
+        Ok(Expr::Atom(Atom::String(
+            String::from("He said \"Hi I'm Brian\".").into()
+        )))
+    );
 }
+
+#[test]
+fn test_parser_raw_strings() {
+    assert_eq!(
+        parser().parse("r'\n'"),
+        Ok(Expr::Atom(Atom::String(
+            String::from("\n").into()
+        )))
+    );
+}
+
 
 #[test]
 fn test_parser_positive_numbers() {

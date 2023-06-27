@@ -26,7 +26,7 @@ pub enum BinaryOp {
     Div,
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum MemberOp {
     // a.b, a[b], a(b)
     Attribute(String),
@@ -34,13 +34,13 @@ pub enum MemberOp {
     Call(Vec<Expr>),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Expr {
     Atom(Atom),
 
     Var(String),
 
-    Member(Box<Expr>, Box<MemberOp>),
+    Member(Box<Expr>, MemberOp),
 
     Unary(UnaryOp, Box<Expr>),
 

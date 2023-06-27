@@ -150,7 +150,7 @@ impl From<CelType> for CelMapKey {
             CelType::NumericCelType(v) => match v {
                 NumericCelType::Int(x) => CelMapKey::Int(x),
                 NumericCelType::UInt(x) => CelMapKey::UInt(x),
-                NumericCelType::Float(x) => unimplemented!(),
+                NumericCelType::Float(_) => unimplemented!("Floats are not allowed as keys"),
             },
             CelType::String(v) => CelMapKey::String(v),
             CelType::Bool(v) => CelMapKey::Bool(v),
@@ -186,16 +186,18 @@ fn eval<'a>(expr: &'a Expr, vars: &mut Vec<(&'a String, CelType)>) -> Result<Cel
             // Built in functions should be in a `Context` struct but we will do some
             // simple ones here for now
             if name == "size" {
-                // For now just size of string
+                // For now just size of List, String
                 return Ok(CelType::Function(CelFunction {
                     function: Rc::new(|args| {
                         let s = args.get(0).unwrap();
-                        match s {
-                            CelType::String(s) => {
-                                CelType::NumericCelType(NumericCelType::UInt(s.len() as u64))
-                            }
+                        let size: u64 = match s {
+                            CelType::List(l) => l.len() as u64,
+                            CelType::String(s) => s.len() as u64,
+                            CelType::Map(m) => m.map.len() as u64,
                             _ => unimplemented!(),
-                        }
+                        };
+
+                        CelType::NumericCelType(NumericCelType::UInt(size))
                     }),
                 }));
             }
@@ -258,24 +260,28 @@ fn eval<'a>(expr: &'a Expr, vars: &mut Vec<(&'a String, CelType)>) -> Result<Cel
                 map: Rc::new(output),
             }))
         }
-        Expr::Member(lhs, memberOp) => {
-            println!("MemberOp: {:?}", memberOp);
+        Expr::Member(lhs, MemberOp::Call(args)) => {
+            println!("Function call");
 
-            let lhs = eval(lhs, vars)?;
-            println!("LHS: {:?}", lhs);
-            match (lhs, memberOp) {
-                (CelType::Function(f), MemberOp::Call(args)) => {
+            let evaluated_lhs = eval(lhs, vars)?;
+            println!("LHS evaluated to: {:?}", evaluated_lhs);
+            match evaluated_lhs {
+                CelType::Function(f) => {
+                    // Call the function (evaluate the output?)
                     let mut evaluated_arguments: Vec<CelType> = Vec::with_capacity(args.len());
                     // Evaluate each expression in the list of arguments
                     for expr in args {
-                        evaluated_arguments.push(eval(expr, vars)?);
+                        evaluated_arguments.push(eval(&expr, vars)?);
                     }
-
-                    // Call the function (evaluate the output?)
                     return Ok((f.function)(evaluated_arguments));
-                }
-                (_, _) => Err(format!("Need to handle member operation")),
+
+                    // Temporarily just return a true
+                    //return Ok(CelType::Bool(true));
+
+                },
+                _ => Err(format!("Can't call this type"))
             }
+
         }
         _ => Err(format!("Need to handle member operation")),
     }
