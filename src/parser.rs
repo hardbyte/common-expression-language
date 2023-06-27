@@ -315,8 +315,13 @@ pub fn parser() -> impl Parser<char, Expr, Error = Simple<char>> {
         .map(Expr::Var)
         .labelled("identifier");
 
+    let null = just("null")
+        .padded()
+        .map(|_| Expr::Atom(Atom::Null))
+        .labelled("null");
+
     let expr = recursive(|expr| {
-        let literal = choice((numbers(), boolean(), str_()));
+        let literal = choice((numbers(), boolean(), str_(), null));
 
         let items = expr
             .clone()
