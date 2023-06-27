@@ -1,6 +1,8 @@
 use ariadne::{sources, Color, Label, Report, ReportKind};
 use chumsky::prelude::*;
 use chumsky::Parser;
+use std::cmp::Ordering;
+use std::collections::HashMap;
 
 use cel_parser::ast::{Atom, BinaryOp, Expr, UnaryOp};
 use cel_parser::parser;
@@ -32,9 +34,10 @@ impl ops::Add<NumericCelType> for NumericCelType {
 
     fn add(self, other: NumericCelType) -> Self {
         match (self, other) {
+            (NumericCelType::UInt(x), NumericCelType::UInt(y)) => NumericCelType::UInt(x + y),
+            (NumericCelType::Int(x), NumericCelType::Int(y)) => NumericCelType::Int(x + y),
             (NumericCelType::Float(x), NumericCelType::Float(y)) => NumericCelType::Float(x + y),
-
-            (x, y) => x + y,
+            (x, y) => unimplemented!("Unable to evaluate: {:?} + {:?}", x, y),
         }
     }
 }
@@ -44,8 +47,10 @@ impl ops::Sub<NumericCelType> for NumericCelType {
 
     fn sub(self, other: NumericCelType) -> Self {
         match (self, other) {
+            (NumericCelType::UInt(x), NumericCelType::UInt(y)) => NumericCelType::UInt(x - y),
+            (NumericCelType::Int(x), NumericCelType::Int(y)) => NumericCelType::Int(x - y),
             (NumericCelType::Float(x), NumericCelType::Float(y)) => NumericCelType::Float(x - y),
-            (x, y) => x - y,
+            (x, y) => unimplemented!("Unable to evaluate: {:?} - {:?}", x, y),
         }
     }
 }
@@ -59,9 +64,7 @@ impl ops::Mul<NumericCelType> for NumericCelType {
             (NumericCelType::UInt(x), NumericCelType::UInt(y)) => NumericCelType::UInt(x * y),
             (NumericCelType::Int(x), NumericCelType::Int(y)) => NumericCelType::Int(x * y),
             (NumericCelType::Float(x), NumericCelType::Float(y)) => NumericCelType::Float(x * y),
-
-            // Fallback match
-            (x, y) => x * y,
+            (x, y) => unimplemented!("Unable to evaluate: {:?} * {:?}", x, y),
         }
     }
 }
@@ -71,14 +74,32 @@ impl ops::Div<NumericCelType> for NumericCelType {
 
     fn div(self, other: NumericCelType) -> Self {
         match (self, other) {
-            // TODO
             (NumericCelType::UInt(x), NumericCelType::UInt(y)) => NumericCelType::UInt(x / y),
             (NumericCelType::Int(x), NumericCelType::Int(y)) => NumericCelType::Int(x / y),
             (NumericCelType::Float(x), NumericCelType::Float(y)) => NumericCelType::Float(x / y),
 
-            // Fallback match
-            (x, y) => x / y,
+            // Fallback will occur with mixed types
+            (x, y) => unimplemented!("Unable to evaluate: {:?} / {:?}", x, y),
         }
+    }
+}
+
+#[derive(Debug, Clone, Eq, Hash, PartialEq, PartialOrd)]
+pub enum CelMapKey {
+    Int(i64),
+    UInt(u64),
+    Bool(bool),
+    String(Rc<String>),
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct CelMap {
+    pub map: Rc<HashMap<CelMapKey, CelType>>,
+}
+
+impl PartialOrd for CelMap {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        None
     }
 }
 
@@ -86,14 +107,28 @@ impl ops::Div<NumericCelType> for NumericCelType {
 pub enum CelType {
     Null,
     Bool(bool),
-
     NumericCelType(NumericCelType),
-
     Bytes(Rc<Vec<u8>>),
     String(Rc<String>),
     List(Rc<Vec<CelType>>),
-    //    Map(CelMap),
+    Map(CelMap),
     //    Function(Rc<String>, Option<Box<CelType>>),
+}
+
+impl From<CelType> for CelMapKey {
+    #[inline(always)]
+    fn from(celtype: CelType) -> Self {
+        match celtype {
+            CelType::NumericCelType(v) => match v {
+                NumericCelType::Int(x) => CelMapKey::Int(x),
+                NumericCelType::UInt(x) => CelMapKey::UInt(x),
+                NumericCelType::Float(x) => unimplemented!(),
+            },
+            CelType::String(v) => CelMapKey::String(v),
+            CelType::Bool(v) => CelMapKey::Bool(v),
+            _ => unimplemented!(),
+        }
+    }
 }
 
 impl From<&Atom> for CelType {
@@ -131,7 +166,10 @@ fn eval<'a>(expr: &'a Expr, vars: &mut Vec<(&'a String, CelType)>) -> Result<Cel
         Expr::Binary(lhs, op, rhs) => {
             let eval_lhs = eval(lhs, vars)?;
             let eval_rhs = eval(rhs, vars)?;
-
+            println!(
+                "Evaluating binary op. lhs: {:?}, op: {:?}, rhs: {:?}",
+                eval_lhs, op, eval_rhs
+            );
             // Not every CelType implement binary ops. For now we check that
             // both the lhs and rhs are of type CelType::NumericCelType
             match (eval_lhs, eval_rhs) {
@@ -169,6 +207,18 @@ fn eval<'a>(expr: &'a Expr, vars: &mut Vec<(&'a String, CelType)>) -> Result<Cel
             }
 
             Ok(CelType::List(Rc::new(output)))
+        }
+        Expr::Map(entries) => {
+            let mut output: HashMap<CelMapKey, CelType> = HashMap::with_capacity(entries.len());
+            // Evaluate each key and expression in the list
+            for (key, expr) in entries {
+                let evaluated_key = eval(key, vars)?;
+                output.insert(evaluated_key.into(), eval(expr, vars)?);
+            }
+
+            Ok(CelType::Map(CelMap {
+                map: Rc::new(output),
+            }))
         }
         _ => todo!(), // We'll handle other cases later
     }

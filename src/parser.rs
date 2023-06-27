@@ -315,29 +315,44 @@ pub fn parser() -> impl Parser<char, Expr, Error = Simple<char>> {
         .map(Expr::Var)
         .labelled("identifier");
 
-
-
     let expr = recursive(|expr| {
         let literal = choice((numbers(), boolean(), str_()));
 
-        let list_items = expr.clone()
+        let items = expr
+            .clone()
             .padded()
             .separated_by(just(','))
             .collect::<Vec<_>>();
 
-
-        let list = list_items.clone()
+        let list = items
+            .clone()
             .delimited_by(just('['), just(']'))
             .map(|items| Expr::List(items));
 
+        let map_item = expr
+            .clone()
+            .then_ignore(just(':'))
+            .then(expr.clone())
+            .padded();
+        //.map(|(key, value)| (key, value));
+
+        let map = map_item
+            .clone()
+            .separated_by(just(','))
+            //.collect::<Vec<_>>()
+            .delimited_by(just('{'), just('}'))
+            .padded()
+            .map(|items|
+                // items is a Vec of (Expr, Expr)
+                Expr::Map(items));
 
         let atomic_expression = literal
             .or(expr.clone().delimited_by(just('('), just(')')))
             .or(ident)
             .or(list)
+            .or(map)
             .padded()
             .boxed();
-
 
         let op = |c| just::<char, _, Simple<char>>(c).padded();
 

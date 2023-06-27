@@ -38,6 +38,9 @@ pub enum Expr {
 
     List(Vec<Expr>),
 
+    // Associative arrays with int, uint, bool, or string keys
+    Map(Vec<(Expr, Expr)>),
+
     Call(String, Vec<Expr>),
 
     Let {
