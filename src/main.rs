@@ -190,14 +190,15 @@ fn eval<'a>(expr: &'a Expr, vars: &mut Vec<(&'a String, CelType)>) -> Result<Cel
                 return Ok(CelType::Function(CelFunction {
                     function: Rc::new(|args| {
                         let s = args.get(0).unwrap();
-                        let size: u64 = match s {
-                            CelType::List(l) => l.len() as u64,
-                            CelType::String(s) => s.len() as u64,
-                            CelType::Map(m) => m.map.len() as u64,
+                        let size: usize = match s {
+                            CelType::List(l) => l.len(),
+                            CelType::String(s) => s.len(),
+                            CelType::Bytes(b) => b.len(),
+                            CelType::Map(m) => m.map.len(),
                             _ => unimplemented!(),
                         };
 
-                        CelType::NumericCelType(NumericCelType::UInt(size))
+                        CelType::NumericCelType(NumericCelType::UInt(size as u64))
                     }),
                 }));
             }
