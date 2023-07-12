@@ -1,4 +1,3 @@
-use ariadne::{sources, Color, Label, Report, ReportKind};
 use chumsky::prelude::*;
 use chumsky::Parser;
 use std::cmp::Ordering;
@@ -8,7 +7,11 @@ use std::fmt::{Debug, Formatter};
 use cel_parser::ast::{Atom, BinaryOp, Expr, MemberOp, UnaryOp};
 use cel_parser::parser;
 
-use std::ops;
+use std::{io, fs, ops};
+use std::io::Read;
+use clap::{Arg, arg, command, value_parser, ArgAction, Command};
+
+
 use std::rc::Rc;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
@@ -287,9 +290,49 @@ fn eval<'a>(expr: &'a Expr, vars: &mut Vec<(&'a String, CelType)>) -> Result<Cel
 }
 
 fn main() {
-    let src = std::env::args().nth(1).unwrap();
+
+    //let src = std::env::args().nth(1).unwrap();
+
+
+    let app = Command::new("cel")
+        .author("Brian Thorne <brian@hardbyte.nz>")
+        .version("0.1") // TODO - read from Cargo.toml
+        .about("Basic CEL implementation")
+        .arg(
+            Arg::new("expression")
+                .help("The CEL expression to evaluate")
+                .required(true)
+        )
+        .arg(
+            Arg::new("input")
+                .help("File to use as context")
+                .required(true)
+        );
+
+    let args = app.get_matches();
+
+    let src = args.get_one::<String>("expression").unwrap().to_string();
+
+    let input_filename = match args.get_one::<String>("input") {
+        Some(filename) => filename,
+        None => "-"
+    };
+    let data:String = if input_filename == "-" {
+        /// read from stdin
+        println!("Reading from stdin");
+        let stdin = io::stdin();
+        let mut reader = stdin.lock();
+        let mut data = String::new();
+        reader.read_to_string(&mut data);
+        data
+    } else {
+        // Read the entire file into a string
+        fs::read_to_string(input_filename).unwrap()
+    };
 
     println!("Loaded source. {:?}", src);
+    println!("Loading context from:\n{:?}", input_filename);
+    //println!("Loaded context:\n{:?}", data);
 
     match parser::parser().parse(src) {
         Ok(ast) => {

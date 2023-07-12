@@ -8,3 +8,5 @@ edition = "2021"
 [dependencies]
 ariadne = { version = "0.3.0", features = ["auto-color"] }
 chumsky = "0.9.2"
+clap = "4.3.11"
+serde = {version = "1.0.171", features = ["derive"]}
