@@ -7,10 +7,10 @@ use std::fmt::{Debug, Formatter};
 use cel_parser::ast::{Atom, BinaryOp, Expr, MemberOp, UnaryOp};
 use cel_parser::parser;
 
-use std::{io, fs, ops};
+use clap::Parser as ClapParser;
 use std::io::Read;
 use std::path::PathBuf;
-use clap::{Parser as ClapParser};
+use std::{fs, io, ops};
 
 use std::rc::Rc;
 
@@ -293,7 +293,6 @@ fn eval<'a>(expr: &'a Expr, vars: &mut Vec<(&'a String, CelType)>) -> Result<Cel
 #[command(name = "cel")]
 #[command(author, version, about, long_about = None)] // Read from `Cargo.toml`
 struct Cli {
-
     /// Optional json context file to operate on
     #[arg(short, long, value_name = "FILE")]
     input: Option<String>,
@@ -304,12 +303,9 @@ struct Cli {
     /// Turn debugging information on
     #[arg(short, long, action = clap::ArgAction::Count)]
     debug: u8,
-
 }
 
-
 fn main() {
-
     //let src = std::env::args().nth(1).unwrap();
     let app = Cli::parse();
 
@@ -325,14 +321,14 @@ fn main() {
             reader.read_to_string(&mut data).unwrap();
             println!("Context file read");
             Some(data)
-        },
+        }
         Some(input_filename) => {
             // Read the entire file into a string
             match fs::read_to_string(input_filename) {
                 Ok(data) => {
                     println!("Context file read");
                     Some(data)
-                },
+                }
                 Err(e) => {
                     println!("Error reading context file: {}", e);
                     None
@@ -340,9 +336,7 @@ fn main() {
             }
         }
         // No input file specified. That's ok just return the None variant
-        None => None
-
-
+        None => None,
     };
 
     println!("Loaded source. {:?}", src);
