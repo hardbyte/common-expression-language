@@ -9,8 +9,8 @@ use cel_parser::parser;
 
 use std::{io, fs, ops};
 use std::io::Read;
-use clap::{Arg, arg, command, value_parser, ArgAction, Command};
-
+use std::path::PathBuf;
+use clap::{Parser as ClapParser};
 
 use std::rc::Rc;
 
@@ -289,50 +289,64 @@ fn eval<'a>(expr: &'a Expr, vars: &mut Vec<(&'a String, CelType)>) -> Result<Cel
     }
 }
 
+#[derive(ClapParser)]
+#[command(name = "cel")]
+#[command(author, version, about, long_about = None)] // Read from `Cargo.toml`
+struct Cli {
+
+    /// Optional json context file to operate on
+    #[arg(short, long, value_name = "FILE")]
+    input: Option<String>,
+
+    #[arg(long)]
+    expression: String,
+
+    /// Turn debugging information on
+    #[arg(short, long, action = clap::ArgAction::Count)]
+    debug: u8,
+
+}
+
+
 fn main() {
 
     //let src = std::env::args().nth(1).unwrap();
+    let app = Cli::parse();
+
+    let src = app.expression.to_string();
+    // Note the as_deref maps the Option<String> to Option<str>
+    let data: Option<String> = match app.input.as_deref() {
+        Some("-") => {
+            // read from stdin
+            println!("Reading context from stdin");
+            let stdin = io::stdin();
+            let mut reader = stdin.lock();
+            let mut data = String::new();
+            reader.read_to_string(&mut data).unwrap();
+            println!("Context file read");
+            Some(data)
+        },
+        Some(input_filename) => {
+            // Read the entire file into a string
+            match fs::read_to_string(input_filename) {
+                Ok(data) => {
+                    println!("Context file read");
+                    Some(data)
+                },
+                Err(e) => {
+                    println!("Error reading context file: {}", e);
+                    None
+                }
+            }
+        }
+        // No input file specified. That's ok just return the None variant
+        None => None
 
 
-    let app = Command::new("cel")
-        .author("Brian Thorne <brian@hardbyte.nz>")
-        .version("0.1") // TODO - read from Cargo.toml
-        .about("Basic CEL implementation")
-        .arg(
-            Arg::new("expression")
-                .help("The CEL expression to evaluate")
-                .required(true)
-        )
-        .arg(
-            Arg::new("input")
-                .help("File to use as context")
-                .required(true)
-        );
-
-    let args = app.get_matches();
-
-    let src = args.get_one::<String>("expression").unwrap().to_string();
-
-    let input_filename = match args.get_one::<String>("input") {
-        Some(filename) => filename,
-        None => "-"
-    };
-    let data:String = if input_filename == "-" {
-        /// read from stdin
-        println!("Reading from stdin");
-        let stdin = io::stdin();
-        let mut reader = stdin.lock();
-        let mut data = String::new();
-        reader.read_to_string(&mut data);
-        data
-    } else {
-        // Read the entire file into a string
-        fs::read_to_string(input_filename).unwrap()
     };
 
     println!("Loaded source. {:?}", src);
-    println!("Loading context from:\n{:?}", input_filename);
-    //println!("Loaded context:\n{:?}", data);
+    println!("Loading context data:\n{:?}", data);
 
     match parser::parser().parse(src) {
         Ok(ast) => {
