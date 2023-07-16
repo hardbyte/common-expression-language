@@ -1,4 +1,3 @@
-use crate::ast::Expr::Unary;
 use crate::ast::{Atom, BinaryOp, Expr, MemberOp, UnaryOp};
 
 use chumsky::prelude::*;
