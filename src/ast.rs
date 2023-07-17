@@ -30,10 +30,10 @@ pub enum BinaryOp {
     // In,
     NotEquals,
     Equals,
-    // GreaterThan,
-    // GreaterThanOrEqual,
-    // LessThan,
-    // LessThanOrEqual,
+    GreaterThan,
+    GreaterThanOrEqual,
+    LessThan,
+    LessThanOrEqual,
 }
 
 #[derive(Clone, Debug, PartialEq)]

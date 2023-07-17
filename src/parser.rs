@@ -401,13 +401,13 @@ pub fn parser() -> impl Parser<char, Expr, Error = Simple<char>> {
             .labelled("sub_or_sub")
             .boxed();
 
-        let comparison_op = just("==").to(BinaryOp::Equals)
+        let comparison_op = just("==")
+            .to(BinaryOp::Equals)
             .or(just("!=").to(BinaryOp::NotEquals))
-            // .or(op('>').to(BinaryOp::Gt))
-            // .or(op('<').to(BinaryOp::Lt))
-            // .or(op(">=").to(BinaryOp::Gte))
-            // .or(op("<=").to(BinaryOp::Lte))
-            ;
+            .or(just(">=").to(BinaryOp::GreaterThanOrEqual))
+            .or(just("<=").to(BinaryOp::LessThanOrEqual))
+            .or(just('>').to(BinaryOp::GreaterThan))
+            .or(just('<').to(BinaryOp::LessThan));
 
         let comparison = sum
             .clone()

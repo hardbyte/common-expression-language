@@ -254,6 +254,10 @@ fn eval<'a>(expr: &'a Expr, vars: &mut Vec<(&'a String, CelType)>) -> Result<Cel
                     BinaryOp::Sub => Ok(CelType::NumericCelType(a - b)),
                     BinaryOp::Equals => Ok(CelType::Bool(a == b)),
                     BinaryOp::NotEquals => Ok(CelType::Bool(a != b)),
+                    BinaryOp::LessThan => Ok(CelType::Bool(a < b)),
+                    BinaryOp::LessThanOrEqual => Ok(CelType::Bool(a <= b)),
+                    BinaryOp::GreaterThan => Ok(CelType::Bool(a > b)),
+                    BinaryOp::GreaterThanOrEqual => Ok(CelType::Bool(a >= b)),
                 },
                 (CelType::List(a), CelType::List(b)) => match op {
                     BinaryOp::Add => {
@@ -266,7 +270,10 @@ fn eval<'a>(expr: &'a Expr, vars: &mut Vec<(&'a String, CelType)>) -> Result<Cel
                     BinaryOp::NotEquals => Ok(CelType::Bool(a != b)),
                     _ => Err(format!("Unsupported list operation {:?}", op)),
                 },
-                (_, _) => Err(format!("Unsupported binary op between {:?} and {:?}", lhs, rhs)),
+                (_, _) => Err(format!(
+                    "Unsupported binary op between {:?} and {:?}",
+                    lhs, rhs
+                )),
             }
         }
 
