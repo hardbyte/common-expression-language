@@ -226,13 +226,21 @@ fn eval<'a>(expr: &'a Expr, vars: &mut Vec<(&'a String, CelType)>) -> Result<Cel
         }
         Expr::Binary(lhs, op, rhs) => {
             let eval_lhs = eval(lhs, vars)?;
+            // For now I evaluate both sides and then destruct matching types
+            // then match the operation. However this is not ideal as it will
+            // evaluate both sides even if it is not needed.
+
             let eval_rhs = eval(rhs, vars)?;
 
             // Not every CelType implement all binary ops.
+            // It might make sense to flip it and match first on the operation,
+            // this would mean operations such as `==` and `!=` could have one implementation
+            // regardless of the sides' types.
             match (eval_lhs, eval_rhs) {
                 (CelType::String(a), CelType::String(b)) => match op {
                     BinaryOp::Add => Ok(CelType::String(Rc::new(format!("{}{}", a, b)))),
                     BinaryOp::Equals => Ok(CelType::Bool(a == b)),
+                    BinaryOp::NotEquals => Ok(CelType::Bool(a != b)),
                     _ => Err(format!(
                         "Binary operation {:?} not supported for String",
                         op
@@ -245,6 +253,7 @@ fn eval<'a>(expr: &'a Expr, vars: &mut Vec<(&'a String, CelType)>) -> Result<Cel
                     BinaryOp::Add => Ok(CelType::NumericCelType(a + b)),
                     BinaryOp::Sub => Ok(CelType::NumericCelType(a - b)),
                     BinaryOp::Equals => Ok(CelType::Bool(a == b)),
+                    BinaryOp::NotEquals => Ok(CelType::Bool(a != b)),
                 },
                 (CelType::List(a), CelType::List(b)) => match op {
                     BinaryOp::Add => {
@@ -253,9 +262,11 @@ fn eval<'a>(expr: &'a Expr, vars: &mut Vec<(&'a String, CelType)>) -> Result<Cel
                         output.extend_from_slice(&b);
                         Ok(CelType::List(Rc::new(output)))
                     }
-                    _ => Err(format!("Only + is supported for lists")),
+                    BinaryOp::Equals => Ok(CelType::Bool(a == b)),
+                    BinaryOp::NotEquals => Ok(CelType::Bool(a != b)),
+                    _ => Err(format!("Unsupported list operation {:?}", op)),
                 },
-                (_, _) => Err(format!("Only numeric types support binary ops currently")),
+                (_, _) => Err(format!("Unsupported binary op between {:?} and {:?}", lhs, rhs)),
             }
         }
 

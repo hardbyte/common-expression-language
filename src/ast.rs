@@ -24,7 +24,16 @@ pub enum BinaryOp {
     Sub,
     Mul,
     Div,
+
+    // "<" | "<=" | ">=" | ">" | "==" | "!=" | "in"
+    // Could be BinaryRel instead, but not sure if that's necessary
+    // In,
+    NotEquals,
     Equals,
+    // GreaterThan,
+    // GreaterThanOrEqual,
+    // LessThan,
+    // LessThanOrEqual,
 }
 
 #[derive(Clone, Debug, PartialEq)]

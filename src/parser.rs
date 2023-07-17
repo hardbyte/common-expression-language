@@ -402,7 +402,7 @@ pub fn parser() -> impl Parser<char, Expr, Error = Simple<char>> {
             .boxed();
 
         let comparison_op = just("==").to(BinaryOp::Equals)
-            //.or(op("!=").to(BinaryOp::NotEquals))
+            .or(just("!=").to(BinaryOp::NotEquals))
             // .or(op('>').to(BinaryOp::Gt))
             // .or(op('<').to(BinaryOp::Lt))
             // .or(op(">=").to(BinaryOp::Gte))
