@@ -9,6 +9,9 @@ Learning Rust by playing with the [Common Expression Language](https://github.co
 - Write a very basic CEL Lexer/Parser in Rust (using [Chumsky](https://crates.io/crates/chumsky))
 - Evaluate the parsed CEL AST by implementing a basic Treewalk interpreter
 - Write a basic CLI for evaluating CEL expressions with data loaded from stdin or a JSON/YAML file.
+- Create rust packages for the Lexer/Parser and Interpreter
+- See how conformant we can get to the CEL spec, parse the test data and evaluate the expressions.
+- Wrap for Python
 
 ### Extensions
 
@@ -16,8 +19,7 @@ Learning Rust by playing with the [Common Expression Language](https://github.co
 - Possibly write a bytecode compiler for a simple stack based VM...
 - Research and try the existing Rust implementations of CEL.
 - Benchmark the Cloud Custodian Python-CEL implementation against the Rust ones.
-- If performance is significantly better, consider wrapping an existing Rust one for Python.
-- Use an existing Lexer like [Logos](https://docs.rs/logos/latest/logos/)?
+- Use an existing Lexer like [Logos](https://docs.rs/logos/latest/logos/)
 
 ## Existing Implementations
 
