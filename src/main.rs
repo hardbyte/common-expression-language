@@ -232,10 +232,12 @@ fn eval<'a>(expr: &'a Expr, vars: &mut Vec<(&'a String, CelType)>) -> Result<Cel
             // both the lhs and rhs are of type CelType::NumericCelType
             match (eval_lhs, eval_rhs) {
                 (CelType::NumericCelType(a), CelType::NumericCelType(b)) => match op {
+                    // Here we know that both the lhs and rhs are of type CelType::NumericCelType
                     BinaryOp::Mul => Ok(CelType::NumericCelType(a * b)),
                     BinaryOp::Div => Ok(CelType::NumericCelType(a / b)),
                     BinaryOp::Add => Ok(CelType::NumericCelType(a + b)),
                     BinaryOp::Sub => Ok(CelType::NumericCelType(a - b)),
+                    BinaryOp::Equals => Ok(CelType::Bool(a == b)),
                 },
                 (CelType::List(a), CelType::List(b)) => match op {
                     BinaryOp::Add => {

@@ -24,6 +24,7 @@ pub enum BinaryOp {
     Sub,
     Mul,
     Div,
+    Equals,
 }
 
 #[derive(Clone, Debug, PartialEq)]
