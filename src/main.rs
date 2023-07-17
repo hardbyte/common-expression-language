@@ -228,9 +228,16 @@ fn eval<'a>(expr: &'a Expr, vars: &mut Vec<(&'a String, CelType)>) -> Result<Cel
             let eval_lhs = eval(lhs, vars)?;
             let eval_rhs = eval(rhs, vars)?;
 
-            // Not every CelType implement binary ops. For now we check that
-            // both the lhs and rhs are of type CelType::NumericCelType
+            // Not every CelType implement all binary ops.
             match (eval_lhs, eval_rhs) {
+                (CelType::String(a), CelType::String(b)) => match op {
+                    BinaryOp::Add => Ok(CelType::String(Rc::new(format!("{}{}", a, b)))),
+                    BinaryOp::Equals => Ok(CelType::Bool(a == b)),
+                    _ => Err(format!(
+                        "Binary operation {:?} not supported for String",
+                        op
+                    )),
+                },
                 (CelType::NumericCelType(a), CelType::NumericCelType(b)) => match op {
                     // Here we know that both the lhs and rhs are of type CelType::NumericCelType
                     BinaryOp::Mul => Ok(CelType::NumericCelType(a * b)),
@@ -247,7 +254,7 @@ fn eval<'a>(expr: &'a Expr, vars: &mut Vec<(&'a String, CelType)>) -> Result<Cel
                         Ok(CelType::List(Rc::new(output)))
                     }
                     _ => Err(format!("Only + is supported for lists")),
-                }
+                },
                 (_, _) => Err(format!("Only numeric types support binary ops currently")),
             }
         }
