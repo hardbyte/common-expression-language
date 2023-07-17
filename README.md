@@ -29,7 +29,7 @@ Learning Rust by playing with the [Common Expression Language](https://github.co
 ## Execution
 
 ```
-cargo run -- "-(3.0 + 5.0) * 2.0e0 - -1.0"
+cargo run -- --expression="-(3.0 + 5.0) * 2.0e0 - -1.0"
 ```
 Which outputs something like:
 ```

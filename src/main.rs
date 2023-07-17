@@ -206,7 +206,7 @@ fn eval<'a>(expr: &'a Expr, vars: &mut Vec<(&'a String, CelType)>) -> Result<Cel
             }
             // Macros are not supported yet
             if name == "has" {
-                return Err(format!("Macro {} not implemented", name));
+                return Err(format!("Macro '{}' not implemented", name));
             }
             Err(format!("Variable {} not found", name))
         }
@@ -309,6 +309,7 @@ fn main() {
     let app = Cli::parse();
 
     let src = app.expression.to_string();
+    // Read the context (a JSON string or file)
     // Note the as_deref maps the Option<String> to Option<str>
     let data: Option<String> = match app.input.as_deref() {
         Some("-") => {
@@ -347,11 +348,16 @@ fn main() {
             println!("Evaluating program");
             let default_vars = &mut Vec::new();
 
-            // Create hard coded variables for builtin macros
-            let test_var_name = String::from("has");
+            // Create hard coded variables for testing, and eventually builtin macros
+            let test_int_var_name = String::from("test_int");
+            let test_str_var_name = String::from("test_str");
             default_vars.push((
-                &test_var_name,
+                &test_int_var_name,
                 CelType::NumericCelType(NumericCelType::Int(1)),
+            ));
+            default_vars.push((
+                &test_str_var_name,
+                CelType::String(Rc::new(String::from("hello world"))),
             ));
 
             match eval(&ast, default_vars) {
