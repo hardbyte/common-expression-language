@@ -237,6 +237,15 @@ fn eval<'a>(expr: &'a Expr, vars: &mut Vec<(&'a String, CelType)>) -> Result<Cel
                     BinaryOp::Add => Ok(CelType::NumericCelType(a + b)),
                     BinaryOp::Sub => Ok(CelType::NumericCelType(a - b)),
                 },
+                (CelType::List(a), CelType::List(b)) => match op {
+                    BinaryOp::Add => {
+                        let mut output: Vec<CelType> = Vec::with_capacity(a.len() + b.len());
+                        output.extend_from_slice(&a);
+                        output.extend_from_slice(&b);
+                        Ok(CelType::List(Rc::new(output)))
+                    }
+                    _ => Err(format!("Only + is supported for lists")),
+                }
                 (_, _) => Err(format!("Only numeric types support binary ops currently")),
             }
         }

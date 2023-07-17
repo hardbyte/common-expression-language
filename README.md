@@ -26,6 +26,10 @@ Learning Rust by playing with the [Common Expression Language](https://github.co
 - [thesayyn/cel-rust](https://github.com/thesayyn/cel-rust) (Incomplete). WASM target with online [demo](https://thesayyn.github.io/cel-rust/).
   Parser uses lalrpop.
 
+Test Data
+
+https://github.com/google/cel-spec/blob/master/tests/simple/testdata/basic.textproto
+
 ## Execution
 
 ```
