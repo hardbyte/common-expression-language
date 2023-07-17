@@ -409,11 +409,10 @@ pub fn parser() -> impl Parser<char, Expr, Error = Simple<char>> {
             // .or(op("<=").to(BinaryOp::Lte))
             ;
 
-        let comparison = sum.clone()
+        let comparison = sum
+            .clone()
             .then(comparison_op.then(sum.clone()).repeated())
-            .foldl(|lhs, (op, rhs)|
-                Expr::Binary(Box::new(lhs), op, Box::new(rhs))
-            )
+            .foldl(|lhs, (op, rhs)| Expr::Binary(Box::new(lhs), op, Box::new(rhs)))
             .labelled("comparison")
             .boxed();
 
@@ -429,14 +428,19 @@ fn test_parser_bool() {
     assert_eq!(parser().parse("false"), Ok(Expr::Atom(Atom::Bool(false))));
     assert_eq!(
         parser().parse("!false"),
-        Ok(Expr::Unary(UnaryOp::Not, Box::new(Expr::Atom(Atom::Bool(false)))))
+        Ok(Expr::Unary(
+            UnaryOp::Not,
+            Box::new(Expr::Atom(Atom::Bool(false)))
+        ))
     );
     assert_eq!(
         parser().parse("!true"),
-        Ok(Expr::Unary(UnaryOp::Not, Box::new(Expr::Atom(Atom::Bool(true)))))
+        Ok(Expr::Unary(
+            UnaryOp::Not,
+            Box::new(Expr::Atom(Atom::Bool(true)))
+        ))
     );
 }
-
 
 #[test]
 fn test_parser_binary_bool_expressions() {
@@ -553,7 +557,10 @@ fn test_parser_binary_product_expressions() {
         Ok(Expr::Binary(
             Box::new(Expr::Atom(Atom::Int(2))),
             BinaryOp::Mul,
-            Box::new(Expr::Unary(UnaryOp::Neg, Box::new(Expr::Atom(Atom::Int(3)))))
+            Box::new(Expr::Unary(
+                UnaryOp::Neg,
+                Box::new(Expr::Atom(Atom::Int(3)))
+            ))
         ))
     );
 
@@ -562,7 +569,10 @@ fn test_parser_binary_product_expressions() {
         Ok(Expr::Binary(
             Box::new(Expr::Atom(Atom::Int(2))),
             BinaryOp::Div,
-            Box::new(Expr::Unary(UnaryOp::Neg, Box::new(Expr::Atom(Atom::Int(3)))))
+            Box::new(Expr::Unary(
+                UnaryOp::Neg,
+                Box::new(Expr::Atom(Atom::Int(3)))
+            ))
         ))
     );
 }
@@ -582,7 +592,10 @@ fn test_parser_sum_expressions() {
         Ok(Expr::Binary(
             Box::new(Expr::Atom(Atom::Int(2))),
             BinaryOp::Sub,
-            Box::new(Expr::Unary(UnaryOp::Neg, Box::new(Expr::Atom(Atom::Int(3)))))
+            Box::new(Expr::Unary(
+                UnaryOp::Neg,
+                Box::new(Expr::Atom(Atom::Int(3)))
+            ))
         ))
     );
 }
