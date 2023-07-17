@@ -337,6 +337,24 @@ pub fn parser() -> impl Parser<char, Expr, Error = Simple<char>> {
             .padded()
             .labelled("function call");
 
+
+        let member = ident
+            .clone()
+            .then_ignore(just('.'))
+            .then(ident.clone())
+            .map(
+                |(lhs, rhs)| {
+                    match rhs {
+                        Expr::Var(v) => {
+                            Expr::Member(Box::new(lhs), MemberOp::Attribute(v))
+                        },
+                        _ => panic!("Expected identifier after '.'"),
+                    }
+                },
+            )
+            .labelled("member access")
+            ;
+
         let list = items
             .clone()
             .delimited_by(just('['), just(']'))
@@ -356,6 +374,7 @@ pub fn parser() -> impl Parser<char, Expr, Error = Simple<char>> {
             .map(|items| Expr::Map(items));
 
         let atomic_expression = function_call
+            .or(member)
             .or(literal)
             .or(ident)
             .or(expr
@@ -387,7 +406,7 @@ pub fn parser() -> impl Parser<char, Expr, Error = Simple<char>> {
 
         let product = unary
             .clone()
-            .then(product_div_op.then(unary.clone()).repeated()) // Could have a repeated here?
+            .then(product_div_op.then(unary.clone()).repeated())
             .foldl(|lhs, (binary_op, rhs)| Expr::Binary(Box::new(lhs), binary_op, Box::new(rhs)))
             .labelled("product_or_division")
             .boxed();
