@@ -337,23 +337,14 @@ pub fn parser() -> impl Parser<char, Expr, Error = Simple<char>> {
             .padded()
             .labelled("function call");
 
-
         let member = ident
             .clone()
-            .then_ignore(just('.'))
-            .then(ident.clone())
-            .map(
-                |(lhs, rhs)| {
-                    match rhs {
-                        Expr::Var(v) => {
-                            Expr::Member(Box::new(lhs), MemberOp::Attribute(v))
-                        },
-                        _ => panic!("Expected identifier after '.'"),
-                    }
-                },
-            )
-            .labelled("member access")
-            ;
+            .then(just('.').ignore_then(ident.clone()).repeated())
+            .foldl(|lhs, rhs| match rhs {
+                Expr::Var(v) => Expr::Member(Box::new(lhs), MemberOp::Attribute(v)),
+                _ => panic!("Expected identifier after '.'"),
+            })
+            .labelled("member access");
 
         let list = items
             .clone()
