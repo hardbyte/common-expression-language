@@ -320,82 +320,117 @@ pub fn parser() -> impl Parser<char, Expr, Error = Simple<char>> {
         .labelled("null");
 
     let expr = recursive(|expr| {
-        let literal = choice((numbers(), boolean(), str_(), null));
+        let literal = choice((numbers(), boolean(), str_(), null))
+            .labelled("literal");
 
-        let items = expr
+        let expr_list = expr
             .clone()
             .padded()
             .separated_by(just(','))
+            .then_ignore(just(',').or_not())
             .collect::<Vec<_>>();
 
         let function_call = ident
             .clone()
             .then_ignore(just('('))
-            .then(items.clone())
+            .then(expr_list.clone())
             .then_ignore(just(')'))
             .map(|(name, args)| Expr::Member(Box::new(name), MemberOp::Call(args)))
             .padded()
             .labelled("function call");
 
-        let member = ident
+        // TODO support "a.b[0]"
+        // attribute access should a recursive "member" expression
+        let member = ident.clone();
+
+        let attribute_access = ident
             .clone()
-            .then(just('.').ignore_then(ident.clone()).repeated())
+            .then(just('.').ignore_then(member.clone()).repeated().at_least(1))
             .foldl(|lhs, rhs| match rhs {
                 Expr::Var(v) => Expr::Member(Box::new(lhs), MemberOp::Attribute(v)),
                 _ => panic!("Expected identifier after '.'"),
             })
-            .labelled("member access");
+            .labelled("attribute");
 
-        let list = items
-            .clone()
+
+        // let index_access = ident
+        //     .clone()
+        //     .then_ignore(just('['))
+        //     .then(expr.clone())
+        //     .then_ignore(just(']'))
+        //     .map(|(member, rhs)| Expr::Member(Box::new(member), MemberOp::Index(Box::new(rhs))))
+        //     .padded()
+        //     .labelled("index access");
+
+        let index = expr.clone()
             .delimited_by(just('['), just(']'))
-            .map(|items| Expr::List(items));
+            .labelled("index");
+
+        let index_access = ident
+            .then(index.repeated().at_least(1))
+            .foldl(|lhs, rhs|
+                Expr::Member(Box::new(lhs), MemberOp::Index(Box::new(rhs))))
+            .labelled("index access");
+
+
+        let list = expr_list
+            .clone()
+            // Ignore trailing comma
+            .delimited_by(just('['), just(']'))
+            .map(|items| Expr::List(items))
+            .labelled("list");
 
         let map_item = expr
             .clone()
             .then_ignore(just(':'))
             .then(expr.clone())
-            .padded();
+            .padded()
+            .labelled("map item");
 
         let map = map_item
             .clone()
             .separated_by(just(','))
             .delimited_by(just('{'), just('}'))
             .padded()
-            .map(|items| Expr::Map(items));
+            .map(|items| Expr::Map(items))
+            .labelled("map");
 
-        let atomic_expression = function_call
-            .or(member)
+        let primary = function_call
+            .or(attribute_access)
+            .or(index_access)
             .or(literal)
-            .or(ident)
+
             .or(expr
                 .clone()
                 .delimited_by(just('('), just(')'))
                 .labelled("parenthesized expression"))
             .or(list)
             .or(map)
+            .or(ident)
             .padded()
+            .labelled("primary")
             .boxed();
 
         let op = |c| just::<char, _, Simple<char>>(c).padded();
 
         let not = op('!')
-            .ignore_then(atomic_expression.clone())
+            .ignore_then(primary.clone())
             .map(|rhs| Expr::Unary(UnaryOp::Not, Box::new(rhs)));
 
         let negation = op('-')
-            .ignore_then(atomic_expression.clone())
+            .ignore_then(primary.clone())
             .map(|rhs| Expr::Unary(UnaryOp::Neg, Box::new(rhs)))
             .labelled("negation");
 
         let unary = choice((not, negation))
-            .or(atomic_expression)
+            .or(primary)
             .padded()
-            .boxed();
+            .boxed()
+            .labelled("unary");
 
         let product_div_op = op('*').to(BinaryOp::Mul).or(op('/').to(BinaryOp::Div));
 
-        let product = unary
+        let multiplication = unary
             .clone()
             .then(product_div_op.then(unary.clone()).repeated())
             .foldl(|lhs, (binary_op, rhs)| Expr::Binary(Box::new(lhs), binary_op, Box::new(rhs)))
@@ -404,14 +439,14 @@ pub fn parser() -> impl Parser<char, Expr, Error = Simple<char>> {
 
         let sum_sub_op = op('+').to(BinaryOp::Add).or(op('-').to(BinaryOp::Sub));
 
-        let sum = product
+        let addition = multiplication
             .clone()
-            .then(sum_sub_op.then(product.clone()).repeated())
+            .then(sum_sub_op.then(multiplication.clone()).repeated())
             .foldl(|lhs, (op, rhs)| Expr::Binary(Box::new(lhs), op, Box::new(rhs)))
             .labelled("sub_or_sub")
             .boxed();
 
-        let comparison_op = just("==")
+        let relationship_op = just("==")
             .to(BinaryOp::Equals)
             .or(just("!=").to(BinaryOp::NotEquals))
             .or(just(">=").to(BinaryOp::GreaterThanOrEqual))
@@ -419,14 +454,14 @@ pub fn parser() -> impl Parser<char, Expr, Error = Simple<char>> {
             .or(just('>').to(BinaryOp::GreaterThan))
             .or(just('<').to(BinaryOp::LessThan));
 
-        let comparison = sum
+        let relation = addition
             .clone()
-            .then(comparison_op.then(sum.clone()).repeated())
+            .then(relationship_op.then(addition.clone()).repeated())
             .foldl(|lhs, (op, rhs)| Expr::Binary(Box::new(lhs), op, Box::new(rhs)))
             .labelled("comparison")
             .boxed();
 
-        comparison
+        relation
     });
 
     expr.then_ignore(end())
