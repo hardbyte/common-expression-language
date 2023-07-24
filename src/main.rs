@@ -299,6 +299,16 @@ fn eval<'a>(expr: &'a Expr, vars: &mut Vec<(&'a String, CelType)>) -> Result<Cel
                 map: Rc::new(output),
             }))
         }
+        Expr::Member(lhs, MemberOp::Index(index_expr)) => {
+            println!("Member Index");
+            // What can we assert about the LHS?
+            let evaluated_lhs = eval(lhs, vars)?;
+            match evaluated_lhs {
+                CelType::String(s) =>
+                _ => Err(format!("Unhandled member operation for {:?}", evaluated_lhs))
+            }
+            Err(format!("Need to handle member operation"))
+        }
         Expr::Member(lhs, MemberOp::Call(args)) => {
             println!("Function call");
 
