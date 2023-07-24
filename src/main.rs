@@ -299,15 +299,47 @@ fn eval<'a>(expr: &'a Expr, vars: &mut Vec<(&'a String, CelType)>) -> Result<Cel
                 map: Rc::new(output),
             }))
         }
-        Expr::Member(lhs, MemberOp::Index(index_expr)) => {
-            println!("Member Index");
+        Expr::Member(lhs, MemberOp::Index(index_expressions)) => {
+            println!("Evaluating a member[index]");
             // What can we assert about the LHS?
             let evaluated_lhs = eval(lhs, vars)?;
             match evaluated_lhs {
-                CelType::String(s) =>
-                _ => Err(format!("Unhandled member operation for {:?}", evaluated_lhs))
+                CelType::String(s) => {
+                    // If the LHS is a string, then the index elements must evaluate to integers
+
+                    let evaluated_indexes: Result<Vec<CelType>, _> = index_expressions
+                        .iter()
+                        .map(|index_expr| eval(index_expr, vars))
+                        .collect();
+
+                    let firstIndex = evaluated_indexes?[0].clone();
+                    println!(
+                        "Evaluating a string index. First index: {:?}. Ignoring rest",
+                        firstIndex
+                    );
+                    match firstIndex {
+                        // TODO OR || CelType::NumericCelType(NumericCelType::UInt(i))
+                        CelType::NumericCelType(NumericCelType::Int(i)) => {
+                            let chars: Vec<char> = s.chars().collect();
+                            let index = i as usize;
+                            if index >= chars.len() {
+                                return Err(format!(
+                                    "Index {} out of bounds for string of length {}",
+                                    index,
+                                    chars.len()
+                                ));
+                            }
+                            Ok(CelType::String(Rc::new(chars[index].to_string())))
+                        }
+                        _ => Err(format!("Index must be an integer")),
+                    }
+                }
+                _ => Err(format!(
+                    "Unhandled member operation for {:?}",
+                    evaluated_lhs
+                )),
             }
-            Err(format!("Need to handle member operation"))
+            //Err(format!("Need to handle member operation"))
         }
         Expr::Member(lhs, MemberOp::Call(args)) => {
             println!("Function call");

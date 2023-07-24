@@ -38,9 +38,9 @@ pub enum BinaryOp {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum MemberOp {
-    // a.b, a[b], a(b)
+    // a.b, a[b, c...], a(b, c, ...)
     Attribute(String),
-    Index(Box<Expr>),
+    Index(Vec<Expr>),
     Call(Vec<Expr>),
 }
 
