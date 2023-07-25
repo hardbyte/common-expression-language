@@ -332,6 +332,13 @@ fn eval<'a>(expr: &'a Expr, vars: &mut Vec<(&'a String, CelType)>) -> Result<Cel
                         _ => Err(format!("Index must be an integer")),
                     }
                 }
+                CelType::Map(m) => {
+                    // First get a MapKey variant from the (first) index expression
+                    let first_index_expression = eval(&index_expressions[0], vars)?;
+
+                    let map_key = CelMapKey::from(first_index_expression);
+                    Ok(m.map.get(&map_key).unwrap().clone())
+                }
                 _ => Err(format!(
                     "Unhandled member operation for {:?}",
                     evaluated_lhs
@@ -443,6 +450,7 @@ fn main() {
             // Create hard coded variables for testing, and eventually builtin macros
             let test_int_var_name = String::from("test_int");
             let test_str_var_name = String::from("test_str");
+            let test_map_var_name = String::from("test_map");
             default_vars.push((
                 &test_int_var_name,
                 CelType::NumericCelType(NumericCelType::Int(1)),
@@ -450,6 +458,21 @@ fn main() {
             default_vars.push((
                 &test_str_var_name,
                 CelType::String(Rc::new(String::from("hello world"))),
+            ));
+            let mut test_map = HashMap::new();
+            test_map.insert(
+                CelMapKey::Int(1),
+                CelType::String(Rc::new(String::from("one"))),
+            );
+            test_map.insert(
+                CelMapKey::String(Rc::new(String::from("two"))),
+                CelType::NumericCelType(NumericCelType::Int(2)),
+            );
+            default_vars.push((
+                &test_map_var_name,
+                CelType::Map(CelMap {
+                    map: Rc::new(test_map),
+                }),
             ));
 
             match eval(&ast, default_vars) {
