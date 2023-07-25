@@ -322,11 +322,12 @@ fn eval<'a>(expr: &'a Expr, vars: &mut Vec<(&'a String, CelType)>) -> Result<Cel
                             Ok(CelType::String(Rc::new(str[index..index + 1].to_string())))
                         }
                         // Match a pair of indexes
-                        [CelType::NumericCelType(startIndex), CelType::NumericCelType(endIndex)] => {
+                        [CelType::NumericCelType(start_index), CelType::NumericCelType(end_index)] =>
+                        {
                             // String slice "hello"[1,3] -> "el"
                             let str_len = s.len();
-                            let start = str_index_from_cel_number(startIndex, str_len)?;
-                            let end = str_index_from_cel_number(endIndex, str_len)?;
+                            let start = str_index_from_cel_number(start_index, str_len)?;
+                            let end = str_index_from_cel_number(end_index, str_len)?;
                             Ok(CelType::String(Rc::new(str[start..end].to_string())))
                         }
                         _ => Err(format!("Index must be an integer")),
@@ -373,12 +374,17 @@ fn eval<'a>(expr: &'a Expr, vars: &mut Vec<(&'a String, CelType)>) -> Result<Cel
 
 fn str_index_from_cel_number(cel_index: &NumericCelType, strlen: usize) -> Result<usize, String> {
     let index = match cel_index {
-        NumericCelType::Int(i) => *i as usize,
+        NumericCelType::Int(i) if *i >= 0 => *i as usize,
         NumericCelType::UInt(i) => *i as usize,
-        _ => return Err(format!("Index must be an integer, not {:?}", cel_index)),
+        _ => {
+            return Err(format!(
+                "Index must be a positive integer, not {:?}",
+                cel_index
+            ))
+        }
     };
 
-    if index > (strlen) || index < 0 {
+    if index > (strlen) {
         return Err(format!(
             "Index {} out of bounds for string of length {}",
             index, strlen
