@@ -320,8 +320,7 @@ pub fn parser() -> impl Parser<char, Expr, Error = Simple<char>> {
         .labelled("null");
 
     let expr = recursive(|expr| {
-        let literal = choice((numbers(), boolean(), str_(), null))
-            .labelled("literal");
+        let literal = choice((numbers(), boolean(), str_(), null)).labelled("literal");
 
         let expr_list = expr
             .clone()
@@ -352,7 +351,6 @@ pub fn parser() -> impl Parser<char, Expr, Error = Simple<char>> {
             })
             .labelled("attribute");
 
-
         // let index_access = ident
         //     .clone()
         //     .then_ignore(just('['))
@@ -362,16 +360,15 @@ pub fn parser() -> impl Parser<char, Expr, Error = Simple<char>> {
         //     .padded()
         //     .labelled("index access");
 
-        let index = expr.clone()
+        let index = expr_list
+            .clone()
             .delimited_by(just('['), just(']'))
             .labelled("index");
 
         let index_access = ident
             .then(index.repeated().at_least(1))
-            .foldl(|lhs, rhs|
-                Expr::Member(Box::new(lhs), MemberOp::Index(Box::new(rhs))))
+            .foldl(|lhs, rhs| Expr::Member(Box::new(lhs), MemberOp::Index(rhs)))
             .labelled("index access");
-
 
         let list = expr_list
             .clone()
@@ -399,7 +396,6 @@ pub fn parser() -> impl Parser<char, Expr, Error = Simple<char>> {
             .or(attribute_access)
             .or(index_access)
             .or(literal)
-
             .or(expr
                 .clone()
                 .delimited_by(just('('), just(')'))

@@ -299,6 +299,53 @@ fn eval<'a>(expr: &'a Expr, vars: &mut Vec<(&'a String, CelType)>) -> Result<Cel
                 map: Rc::new(output),
             }))
         }
+        Expr::Member(lhs, MemberOp::Index(index_expressions)) => {
+            println!("Evaluating a member[index]");
+            // What can we assert about the LHS?
+            let evaluated_lhs = eval(lhs, vars)?;
+            match evaluated_lhs {
+                CelType::String(s) => {
+                    let str = s.as_str();
+                    // If the LHS is a string, then the index elements must evaluate to integers
+                    let evaluated_indexes: Result<Vec<CelType>, _> = index_expressions
+                        .iter()
+                        .map(|index_expr| eval(index_expr, vars))
+                        .collect();
+
+                    let indexes = evaluated_indexes?;
+
+                    match indexes.as_slice() {
+                        // Match a single index
+                        [CelType::NumericCelType(cel_index)] => {
+                            let index = str_index_from_cel_number(cel_index, s.len())?;
+
+                            Ok(CelType::String(Rc::new(str[index..index + 1].to_string())))
+                        }
+                        // Match a pair of indexes
+                        [CelType::NumericCelType(startIndex), CelType::NumericCelType(endIndex)] => {
+                            // String slice "hello"[1,3] -> "el"
+                            let str_len = s.len();
+                            let start = str_index_from_cel_number(startIndex, str_len)?;
+                            let end = str_index_from_cel_number(endIndex, str_len)?;
+                            Ok(CelType::String(Rc::new(str[start..end].to_string())))
+                        }
+                        _ => Err(format!("Index must be an integer")),
+                    }
+                }
+                CelType::Map(m) => {
+                    // First get a MapKey variant from the (first) index expression
+                    let first_index_expression = eval(&index_expressions[0], vars)?;
+
+                    let map_key = CelMapKey::from(first_index_expression);
+                    Ok(m.map.get(&map_key).unwrap().clone())
+                }
+                _ => Err(format!(
+                    "Unhandled member operation for {:?}",
+                    evaluated_lhs
+                )),
+            }
+            //Err(format!("Need to handle member operation"))
+        }
         Expr::Member(lhs, MemberOp::Call(args)) => {
             println!("Function call");
 
@@ -322,6 +369,22 @@ fn eval<'a>(expr: &'a Expr, vars: &mut Vec<(&'a String, CelType)>) -> Result<Cel
         }
         _ => Err(format!("Need to handle member operation")),
     }
+}
+
+fn str_index_from_cel_number(cel_index: &NumericCelType, strlen: usize) -> Result<usize, String> {
+    let index = match cel_index {
+        NumericCelType::Int(i) => *i as usize,
+        NumericCelType::UInt(i) => *i as usize,
+        _ => return Err(format!("Index must be an integer, not {:?}", cel_index)),
+    };
+
+    if index > (strlen) || index < 0 {
+        return Err(format!(
+            "Index {} out of bounds for string of length {}",
+            index, strlen
+        ));
+    }
+    Ok(index)
 }
 
 #[derive(ClapParser)]
@@ -387,6 +450,7 @@ fn main() {
             // Create hard coded variables for testing, and eventually builtin macros
             let test_int_var_name = String::from("test_int");
             let test_str_var_name = String::from("test_str");
+            let test_map_var_name = String::from("test_map");
             default_vars.push((
                 &test_int_var_name,
                 CelType::NumericCelType(NumericCelType::Int(1)),
@@ -394,6 +458,21 @@ fn main() {
             default_vars.push((
                 &test_str_var_name,
                 CelType::String(Rc::new(String::from("hello world"))),
+            ));
+            let mut test_map = HashMap::new();
+            test_map.insert(
+                CelMapKey::Int(1),
+                CelType::String(Rc::new(String::from("one"))),
+            );
+            test_map.insert(
+                CelMapKey::String(Rc::new(String::from("two"))),
+                CelType::NumericCelType(NumericCelType::Int(2)),
+            );
+            default_vars.push((
+                &test_map_var_name,
+                CelType::Map(CelMap {
+                    map: Rc::new(test_map),
+                }),
             ));
 
             match eval(&ast, default_vars) {
