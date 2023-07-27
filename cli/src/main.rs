@@ -4,7 +4,7 @@ use std::io;
 use std::io::Read;
 use std::rc::Rc;
 
-use cel_interpreter::eval;
+use cel_interpreter::{eval, map_json_text_to_cel_types};
 use cel_interpreter::types::{CelMap, CelMapKey, CelType, NumericCelType};
 use cel_parser::parse_cel_expression;
 use clap::Parser as ClapParser;
@@ -26,42 +26,28 @@ struct Cli {
 }
 
 fn main() {
-    //let src = std::env::args().nth(1).unwrap();
     let app = Cli::parse();
 
-    let src = app.expression.to_string();
-    // Read the context (a JSON string or file)
-    // Note the as_deref maps the Option<String> to Option<str>
-    let data: Option<String> = match app.input.as_deref() {
-        Some("-") => {
-            // read from stdin
-            println!("Reading context from stdin");
-            let stdin = io::stdin();
-            let mut reader = stdin.lock();
-            let mut data = String::new();
-            reader.read_to_string(&mut data).unwrap();
-            println!("Context file read");
-            Some(data)
-        }
-        Some(input_filename) => {
-            // Read the entire file into a string
-            match fs::read_to_string(input_filename) {
-                Ok(data) => {
-                    println!("Context file read");
-                    Some(data)
-                }
-                Err(e) => {
-                    println!("Error reading context file: {}", e);
-                    None
-                }
-            }
-        }
-        // No input file specified. That's ok just return the None variant
-        None => None,
-    };
 
-    println!("Loaded source. {:?}", src);
-    println!("Loading context data:\n{:?}", data);
+    // Read the context (from stdin or a JSON file)
+
+    // Note the as_deref maps the app.input's Option<String> to Option<str>
+    let context_filename: Option<&str> = app.input.as_deref();
+
+    let context = context_filename
+        .map(|filename|
+            load_context(filename).expect("Error loading context file")
+            )
+        .map(|json_data| {
+            // Map the json string of context into CelType::Map
+            let context_result: Result<CelType, String> = map_json_text_to_cel_types(&json_data);
+            context_result.expect("Error parsing context data")
+        }).unwrap_or_else(|| _create_empty_cel_map());
+
+    let src = app.expression.to_string();
+    println!("Context: {:?}", context);
+    println!("CEL Expression:\n{:?}\n", src);
+
 
     match parse_cel_expression(src) {
         Ok(ast) => {
@@ -107,6 +93,40 @@ fn main() {
             parse_errs
                 .into_iter()
                 .for_each(|e| println!("Parse error: {:?}", e));
+        }
+    }
+}
+
+fn _create_empty_cel_map() -> CelType {
+    CelType::Map(CelMap { map: Rc::new(HashMap::new()) })
+}
+
+/// Load data from a file or stdin
+fn load_context(context_filename: &str) -> Result<String, String> {
+    match context_filename {
+        "-" => {
+            // read from stdin
+            println!("Reading context from stdin");
+            let stdin = io::stdin();
+            let mut reader = stdin.lock();
+            let mut data = String::new();
+            reader.read_to_string(&mut data).unwrap();
+            println!("Context file read");
+            Ok(data)
+        }
+        input_filename => {
+            fs::read_to_string(input_filename)
+                .map_err(|e| format!("Error reading context file: {}", e))
+            // Read the entire file into a string
+            // match fs::read_to_string(input_filename) {
+            //     Ok(data) => {
+            //         println!("Context file read");
+            //         Ok(data)
+            //     }
+            //     Err(e) => {
+            //         Err(format!("Error reading context file: {}", e))
+            //     }
+            // }
         }
     }
 }

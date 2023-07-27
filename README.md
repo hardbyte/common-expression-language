@@ -18,16 +18,6 @@ Learning Rust by playing with the [Common Expression Language](https://github.co
 - Benchmark the Cloud Custodian Python-CEL implementation against the Rust ones.
 - Use an existing Lexer like [Logos](https://docs.rs/logos/latest/logos/)
 
-## Existing Implementations
-
-- [clarkmcc/cel-rust](https://github.com/clarkmcc/cel-rust) (Maintained fork of [orf/cel-rust](https://github.com/orf/cel-rust).)
-  Implements separate crates for parser (using lalrpop) and interpreter (straightforward treewalk interpreter).
-- [thesayyn/cel-rust](https://github.com/thesayyn/cel-rust) (Incomplete). WASM target with online [demo](https://thesayyn.github.io/cel-rust/).
-  Parser uses lalrpop.
-
-Test Data
-
-https://github.com/google/cel-spec/blob/master/tests/simple/testdata/basic.textproto
 
 ## Execution
 
@@ -44,26 +34,48 @@ NumericCelType(Float(-15.0))
 ```
 
 Note the parser is not complete, so it will fail on some valid expressions. At this stage I'm not
-intending to implement a full interpreter with all built in functions, just enough to get a feel for
-the language and the parser.
+intending to implement a full interpreter with all built-in functions, just enough to get a feel for
+the language and the parser. Have implemented basic support for strings, numbers, bools, lists, maps,
+variables, and basic operators:
 
 ```shell
-cargo run -- --expression="size('hello world') > 5"
+cargo run -- --expression="size('hello world') > 5u"
 ```
 
 Outputs:
 ```
+CEL Expression:
+"size('hello world') > 5u"
+
+Context data:
+None
 AST: 
-Binary(Member(Var("size"), Call([Atom(String("hello world"))])), GreaterThan, Atom(Int(5)))
+Binary(Member(Var("size"), Call([Atom(String("hello world"))])), GreaterThan, Atom(UInt(5)))
 
 Evaluating program
 Bool(true)
+
 ```
 
 
-## References
+# References
 
-Real parsers using Chumsky:
+## Existing CEL Implementations
+
+- [cel-go](https://github.com/google/cel-go) - Reference implementation of CEL by Google in Go.
+- [cel-python](https://github.com/cloud-custodian/cel-python) - Python implementation of CEL by Cloud Custodian 
+  as used in [Netchecks](https://github.com/hardbyte/netchecks).
+- [clarkmcc/cel-rust](https://github.com/clarkmcc/cel-rust) (Maintained fork of [orf/cel-rust](https://github.com/orf/cel-rust).)
+  Implements separate crates for parser (using lalrpop) and interpreter (straightforward treewalk interpreter).
+- [thesayyn/cel-rust](https://github.com/thesayyn/cel-rust) (Incomplete). WASM target with online [demo](https://thesayyn.github.io/cel-rust/).
+  Parser uses lalrpop.
+
+Test Data
+
+https://github.com/google/cel-spec/blob/master/tests/simple/testdata/basic.textproto
+
+## Real parsers using Chumsky
+
 - [jaq](https://github.com/01mf02/jaq/blob/main/jaq-parse/src/token.rs)
 - https://github.com/panda-re/panda/blob/dev/panda/plugins/cosi_strace/src/c_type_parser.rs
 - [prql](https://github.com/PRQL/prql/blob/main/prql-compiler/src/parser) (uses a separate Chumsky Lexer to create Vec<Token>, then parses Token stream into Expr, Stmt, Literal etc)

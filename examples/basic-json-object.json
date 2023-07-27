@@ -1,3 +1,14 @@
 {
-  "mykey": "my value"
+  "foo": "bar",
+  "string key": "my value",
+  "int key": 42,
+  "float key": 3.14,
+  "nested object": {
+    "nested key": 1
+  },
+  "array key": [
+    {
+      "a bool": true
+    }
+  ]
 }
