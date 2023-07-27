@@ -1,5 +1,5 @@
 [package]
-name = "cel-interpreter"
+name = "cel-cli"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,4 +7,5 @@ edition = "2021"
 
 [dependencies]
 cel-parser = { path = "../parser" }
-serde = {version = "1.0.171", features = ["derive"]}
+cel-interpreter = { path = "../interpreter"}
+clap = { version = "4.3.11", features = ["derive"]}
