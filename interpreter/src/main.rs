@@ -1,10 +1,10 @@
-use chumsky::Parser;
+
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 
 use cel_parser::ast::{Atom, BinaryOp, Expr, MemberOp, UnaryOp};
-use cel_parser::parser;
+use cel_parser::parse_cel_expression;
 
 use clap::Parser as ClapParser;
 use std::io::Read;
@@ -447,7 +447,7 @@ fn main() {
     println!("Loaded source. {:?}", src);
     println!("Loading context data:\n{:?}", data);
 
-    match parser::parser().parse(src) {
+    match parse_cel_expression(src) {
         Ok(ast) => {
             println!("AST: \n{:?}\n", ast);
             println!("Evaluating program");

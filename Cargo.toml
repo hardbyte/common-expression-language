@@ -1,15 +1,6 @@
-[package]
-name = "cel-parser"
-version = "0.1.0"
-edition = "2021"
-authors = ["Brian Thorne <brian@hardbyte.nz>"]
-description = "A parser for the CEL language"
-license = "apache-2.0"
+[workspace]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
-ariadne = { version = "0.3.0", features = ["auto-color"] }
-chumsky = "0.9.2"
-clap = { version = "4.3.11", features = ["derive"] }
-serde = {version = "1.0.171", features = ["derive"]}
+members = [
+    "parser",
+    "interpreter",
+]
