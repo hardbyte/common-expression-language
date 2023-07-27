@@ -12,7 +12,7 @@ Learning Rust by playing with the [Common Expression Language](https://github.co
 
 ### Extensions
 
-- Use a Pratt parser once Chumsky supports it (https://github.com/zesterer/chumsky/pull/380)
+- Use a Pratt parser ~once~ now that Chumsky supports it (https://github.com/zesterer/chumsky/pull/464)
 - Possibly write a bytecode compiler for a simple stack based VM...
 - Research and try the existing Rust implementations of CEL.
 - Benchmark the Cloud Custodian Python-CEL implementation against the Rust ones.
@@ -49,7 +49,7 @@ CEL Expression:
 
 Context data:
 None
-AST: 
+AST:
 Binary(Member(Var("size"), Call([Atom(String("hello world"))])), GreaterThan, Atom(UInt(5)))
 
 Evaluating program
@@ -63,7 +63,7 @@ Bool(true)
 ## Existing CEL Implementations
 
 - [cel-go](https://github.com/google/cel-go) - Reference implementation of CEL by Google in Go.
-- [cel-python](https://github.com/cloud-custodian/cel-python) - Python implementation of CEL by Cloud Custodian 
+- [cel-python](https://github.com/cloud-custodian/cel-python) - Python implementation of CEL by Cloud Custodian
   as used in [Netchecks](https://github.com/hardbyte/netchecks).
 - [clarkmcc/cel-rust](https://github.com/clarkmcc/cel-rust) (Maintained fork of [orf/cel-rust](https://github.com/orf/cel-rust).)
   Implements separate crates for parser (using lalrpop) and interpreter (straightforward treewalk interpreter).
@@ -86,4 +86,3 @@ https://github.com/google/cel-spec/blob/master/tests/simple/testdata/basic.textp
 - [monty](https://github.com/mental32/monty/blob/master/montyc_parser/src/comb.rs) uses a lot of Rust macros
 - [blackstone](https://github.com/BlackstoneDF/blackstone/blob/main/src/parser/parse.rs)
 - [savage](https://github.com/p-e-w/savage/blob/master/savage_core/src/parse.rs)
-
