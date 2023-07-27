@@ -1,4 +1,6 @@
 use cel_parser::ast::{BinaryOp, Expr, MemberOp, UnaryOp};
+use serde_json;
+use serde_json::{Number, Value};
 use std::collections::HashMap;
 use std::rc::Rc;
 use types::{CelFunction, CelMap, CelMapKey, CelType, NumericCelType};
@@ -35,6 +37,7 @@ pub fn eval<'a>(expr: &'a Expr, vars: &mut Vec<(&'a String, CelType)>) -> Result
                     }),
                 }));
             }
+
             // Macros are not supported yet
             if name == "has" {
                 return Err(format!("Macro '{}' not implemented", name));
@@ -194,5 +197,60 @@ pub fn eval<'a>(expr: &'a Expr, vars: &mut Vec<(&'a String, CelType)>) -> Result
             }
         }
         _ => Err(format!("Need to handle member operation")),
+    }
+}
+
+/** Load JSON from a string and convert it into CelTypes.
+
+Internally this uses serde_json to parse the string into Serde's internal
+representation of JSON. We then recursively convert the values into CelTypes.
+*/
+pub fn map_json_text_to_cel_types(raw_data: &str) -> Result<CelType, String> {
+    // First load the file into serde_json's internal representation Value
+    let data: Value = serde_json::from_str(&raw_data).map_err(|e| format!("{}", e))?;
+
+    println!("Parsed context data: {:?}", data);
+
+    // Now convert the Value enum into the CelType enum
+    let cel_data = json_to_cel(data);
+
+    Ok(cel_data)
+}
+
+/// Map JSON data from Serde JSON to CelType
+pub fn json_to_cel(data: Value) -> CelType {
+    match data {
+        Value::Null => CelType::Null,
+        Value::Bool(v) => CelType::Bool(v),
+        Value::Number(v) => CelType::NumericCelType(serde_json_number_to_numeric_cel_type(v)),
+        Value::String(s) => CelType::String(Rc::new(s)),
+        Value::Array(v) => {
+            CelType::List(Rc::new(v.iter().map(|v| json_to_cel(v.clone())).collect()))
+        }
+        Value::Object(v) => CelType::Map(CelMap {
+            map: Rc::new(
+                v.iter()
+                    .map(|(k, v)| {
+                        (
+                            // Note keys from JSON are always strings
+                            CelMapKey::String(Rc::new(k.clone())),
+                            json_to_cel(v.clone()),
+                        )
+                    })
+                    .collect(),
+            ),
+        }),
+    }
+}
+
+fn serde_json_number_to_numeric_cel_type(n: Number) -> NumericCelType {
+    if n.is_i64() {
+        NumericCelType::Int(n.as_i64().unwrap())
+    } else if n.is_u64() {
+        NumericCelType::UInt(n.as_u64().unwrap())
+    } else if n.is_f64() {
+        NumericCelType::Float(n.as_f64().unwrap())
+    } else {
+        panic!("Unexpected number type")
     }
 }
