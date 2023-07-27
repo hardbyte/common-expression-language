@@ -4,8 +4,8 @@ use std::io;
 use std::io::Read;
 use std::rc::Rc;
 
-use cel_interpreter::{eval, map_json_text_to_cel_types};
 use cel_interpreter::types::{CelMap, CelMapKey, CelType, NumericCelType};
+use cel_interpreter::{eval, map_json_text_to_cel_types};
 use cel_parser::parse_cel_expression;
 use clap::Parser as ClapParser;
 
@@ -28,26 +28,23 @@ struct Cli {
 fn main() {
     let app = Cli::parse();
 
-
     // Read the context (from stdin or a JSON file)
 
     // Note the as_deref maps the app.input's Option<String> to Option<str>
     let context_filename: Option<&str> = app.input.as_deref();
 
     let context = context_filename
-        .map(|filename|
-            load_context(filename).expect("Error loading context file")
-            )
+        .map(|filename| load_context(filename).expect("Error loading context file"))
         .map(|json_data| {
             // Map the json string of context into CelType::Map
             let context_result: Result<CelType, String> = map_json_text_to_cel_types(&json_data);
             context_result.expect("Error parsing context data")
-        }).unwrap_or_else(|| _create_empty_cel_map());
+        })
+        .unwrap_or_else(|| _create_empty_cel_map());
 
     let src = app.expression.to_string();
     println!("Context: {:?}", context);
     println!("CEL Expression:\n{:?}\n", src);
-
 
     match parse_cel_expression(src) {
         Ok(ast) => {
@@ -98,7 +95,9 @@ fn main() {
 }
 
 fn _create_empty_cel_map() -> CelType {
-    CelType::Map(CelMap { map: Rc::new(HashMap::new()) })
+    CelType::Map(CelMap {
+        map: Rc::new(HashMap::new()),
+    })
 }
 
 /// Load data from a file or stdin

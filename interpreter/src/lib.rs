@@ -1,9 +1,9 @@
 use cel_parser::ast::{BinaryOp, Expr, MemberOp, UnaryOp};
+use serde_json;
+use serde_json::{Number, Value};
 use std::collections::HashMap;
 use std::rc::Rc;
 use types::{CelFunction, CelMap, CelMapKey, CelType, NumericCelType};
-use serde_json;
-use serde_json::{Number, Value};
 
 // TODO should this really be public?
 mod strings;
@@ -200,7 +200,6 @@ pub fn eval<'a>(expr: &'a Expr, vars: &mut Vec<(&'a String, CelType)>) -> Result
     }
 }
 
-
 /** Load JSON from a string and convert it into CelTypes.
 
 Internally this uses serde_json to parse the string into Serde's internal
@@ -225,11 +224,9 @@ pub fn json_to_cel(data: Value) -> CelType {
         Value::Bool(v) => CelType::Bool(v),
         Value::Number(v) => CelType::NumericCelType(serde_json_number_to_numeric_cel_type(v)),
         Value::String(s) => CelType::String(Rc::new(s)),
-        Value::Array(v) => CelType::List(Rc::new(
-            v.iter()
-                .map(|v| json_to_cel(v.clone()))
-                .collect(),
-        )),
+        Value::Array(v) => {
+            CelType::List(Rc::new(v.iter().map(|v| json_to_cel(v.clone())).collect()))
+        }
         Value::Object(v) => CelType::Map(CelMap {
             map: Rc::new(
                 v.iter()
