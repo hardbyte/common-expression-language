@@ -1,10 +1,7 @@
 
 Learning Rust by playing with the [Common Expression Language](https://github.com/google/cel-spec).
 
-
-
 ## Plan
-
 
 - Write a very basic CEL Lexer/Parser in Rust (using [Chumsky](https://crates.io/crates/chumsky))
 - Evaluate the parsed CEL AST by implementing a basic Treewalk interpreter
@@ -46,7 +43,23 @@ Evaluating program
 NumericCelType(Float(-15.0))
 ```
 
-Note: haven't implemented any type coercing, or much of the language beyond number literals yet!
+Note the parser is not complete, so it will fail on some valid expressions. At this stage I'm not
+intending to implement a full interpreter with all built in functions, just enough to get a feel for
+the language and the parser.
+
+```shell
+cargo run -- --expression="size('hello world') > 5"
+```
+
+Outputs:
+```
+AST: 
+Binary(Member(Var("size"), Call([Atom(String("hello world"))])), GreaterThan, Atom(Int(5)))
+
+Evaluating program
+Bool(true)
+```
+
 
 ## References
 
