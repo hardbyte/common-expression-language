@@ -3,7 +3,7 @@ use crate::ast::{Atom, BinaryOp, Expr, MemberOp, UnaryOp};
 use chumsky::prelude::*;
 use chumsky::Parser;
 
-fn boolean() -> impl Parser<char, Expr, Error = Simple<char>> {
+fn boolean<'src>() -> impl Parser<'src, &'src str, Expr, extra::Err<Simple<'src, char>>> {
     just("true")
         .to(true)
         .or(just("false").to(false))
@@ -18,8 +18,9 @@ fn test_boolean_parser() {
     assert!(boolean().parse("False").is_err());
 }
 
-/// Parses floating point and integer numbers and returns them as [`Expr::Atom(Atom::Double(...))`]
-/// or [`Expr::Atom(Atom::Int(...))`] types. The following formats are supported:
+
+/// Parses floating point and integer numbers and returns them as [`Expression::Atom(Atom::Double(...))`]
+/// or [`Expression::Atom(Atom::Int(...))`] types. The following formats are supported:
 /// - `1`
 /// - `1.`
 /// - `1.0`
@@ -31,42 +32,33 @@ fn test_boolean_parser() {
 /// - `1E-10`
 /// - `-1e10`
 /// - `1u`
-fn numbers() -> impl Parser<char, Expr, Error = Simple<char>> {
-    let digits = text::digits::<char, Simple<char>>(10);
+fn numbers<'a>() -> impl Parser<'a, &'a str, Expr, extra::Err<Simple<'a, char>>> {
+    let digits = text::digits(10).slice();
 
-    let frac = just('.').chain::<char, _, _>(digits.clone().or_not());
+    let frac = just('.').then(digits);
 
     let exp = just('e')
         .or(just('E'))
-        .chain::<char, _, _>(one_of("+-").or_not())
-        .chain::<char, _, _>(digits.clone());
+        .then(one_of("+-").or_not())
+        .then(digits);
 
     let floating = just('-')
         .or_not()
-        .chain::<char, _, _>(text::int::<char, Simple<char>>(10))
-        .chain::<char, _, _>(frac.or_not().flatten())
-        .chain::<char, _, _>(exp.or_not().flatten())
-        .try_map(|chars, span| {
-            let str = chars.into_iter().collect::<String>();
-
-            if let Ok(i) = str.parse::<i64>() {
-                Ok(Expr::Atom(Atom::Int(i)))
-            } else if let Ok(f) = str.parse::<f64>() {
-                Ok(Expr::Atom(Atom::Double(f)))
-            } else {
-                Err(Simple::expected_input_found(span, None, None))
-            }
+        .then(text::int(10))
+        .then(frac.or_not())
+        .then(exp.or_not())
+        .map_slice(|s: &str| {
+            Expr::Atom(Atom::Double(s.parse().unwrap()))
         });
 
-    let unsigned_integer = text::int::<char, Simple<char>>(10)
+    let unsigned_integer = text::int(10)
         .then_ignore(just('u'))
-        .map(|s: String| Expr::Atom(Atom::UInt(s.as_str().parse().unwrap())));
-    let integer = text::int::<char, Simple<char>>(10)
-        .map(|s: String| Expr::Atom(Atom::Int(s.as_str().parse().unwrap())));
+        .map(|s: &str| Expr::Atom(Atom::UInt(s.parse().unwrap())));
+    let integer = text::int(10)
+        .map(|s: &str| Expr::Atom(Atom::Int(s.parse().unwrap())));
 
     choice((unsigned_integer, floating, integer))
         .padded()
-        .labelled("number")
 }
 
 #[test]
@@ -100,39 +92,39 @@ fn test_number_parser_double() {
     );
 }
 
-fn str_inner(
+fn str_inner<'src>(
     delimiter: &str,
     escaping: bool,
-) -> impl Parser<char, String, Error = Simple<char>> + '_ {
-    let unicode = filter::<_, _, Simple<char>>(|c: &char| c.is_ascii_hexdigit())
+) -> impl Parser<&'src str, String, extra::Err<Rich<'src, char>>> + '_ {
+    let unicode = any().filter(|c: &char| c.is_ascii_hexdigit())
         .repeated()
         .exactly(4)
         .collect::<String>()
-        .validate(|digits, span, emit| {
+        .validate(|digits, span, emitter| {
             char::from_u32(u32::from_str_radix(&digits, 16).unwrap()).unwrap_or_else(|| {
-                emit(Simple::custom(span, "invalid unicode character"));
+                emitter.emit(Rich::custom(span, "invalid unicode character"));
                 '\u{FFFD}' // unicode replacement character
             })
         });
 
-    let hex_code_point = filter::<_, _, Simple<char>>(|c: &char| c.is_ascii_hexdigit())
+    let hex_code_point = any().filter(|c: &char| c.is_ascii_hexdigit())
         .repeated()
         .exactly(2)
         .collect::<String>()
-        .validate(|digits, span, emit| {
+        .validate(|digits, span, emitter| {
             char::from_u32(u32::from_str_radix(&digits, 16).unwrap()).unwrap_or_else(|| {
-                emit(Simple::custom(span, "invalid unicode character"));
+                emitter.emit(Rich::custom(span, "invalid unicode character"));
                 '\u{FFFD}' // unicode replacement character
             })
         });
 
-    let octal_code_point = filter::<_, _, Simple<char>>(|c: &char| c.is_ascii_digit())
+    let octal_code_point = any().filter(|c: &char| c.is_ascii_digit())
         .repeated()
         .exactly(3)
         .collect::<String>()
-        .validate(|digits, span, emit| {
+        .validate(|digits, span, emitter| {
             char::from_u32(u32::from_str_radix(&digits, 8).unwrap()).unwrap_or_else(|| {
-                emit(Simple::custom(span, "invalid unicode character"));
+                emitter.emit(Rich::custom(span, "invalid unicode character"));
                 '\u{FFFD}' // unicode replacement character
             })
         });
@@ -149,14 +141,16 @@ fn str_inner(
         just('u').ignore_then(unicode),
         just('x').or(just('X')).ignore_then(hex_code_point),
         octal_code_point,
-    )));
+    ))).boxed();
 
     let mut forbidden = just(delimiter).boxed();
-    let mut inner_string = forbidden.not().boxed();
+    let mut inner_string = none_of(delimiter).boxed();
 
     if escaping {
         forbidden = just(delimiter).or(just("\\")).boxed();
-        inner_string = forbidden.not().or(escape).boxed();
+        inner_string = escape
+            .and_is(forbidden.not())
+            .boxed();
     }
 
     inner_string
@@ -168,32 +162,29 @@ fn str_inner(
 // Ref https://github.com/01mf02/jaq/blob/main/jaq-parse/src/token.rs
 // See also https://github.com/PRQL/prql/blob/main/prql-compiler/src/parser/lexer.rs#L295-L354
 // A parser for strings; adapted from Chumsky's JSON example parser.
-fn str_() -> impl Parser<char, Expr, Error = Simple<char>> {
-    let single_quoted_string = str_inner("'", true).labelled("single quoted string");
+fn str_<'src>() -> impl Parser<'src, &'src str, Expr, extra::Err<Rich<'src, char>>> {
+    let single_quoted_string = str_inner("'", true);
 
-    let double_quoted_string = str_inner("\"", true).labelled("double quoted string");
+    let double_quoted_string = str_inner("\"", true);
 
     // Raw strings don't interpret escape sequences.
 
     let single_quoted_raw_string = just("r")
         .or(just("R"))
-        .ignore_then(str_inner("'", false))
-        .labelled("single quoted raw string");
+        .ignore_then(str_inner("'", false));
 
     let double_quoted_raw_string = just("r")
         .or(just("R"))
-        .ignore_then(str_inner("\"", false))
-        .labelled("double quoted raw string");
+        .ignore_then(str_inner("\"", false));
 
     let triple_single_quoted_raw_string = just("r")
         .or(just("R"))
-        .ignore_then(str_inner("'''", false))
-        .labelled("triple ' quoted string");
+        .ignore_then(str_inner("'''", false));
 
     let triple_single_quoted_escaped_string =
-        str_inner("'''", true).labelled("triple ' quoted escaped string");
+        str_inner("'''", true);
 
-    let triple_double_quoted_string = str_inner("\"\"\"", true).labelled("triple \" quoted string");
+    let triple_double_quoted_string = str_inner("\"\"\"", true);
 
     choice((
         triple_single_quoted_raw_string,
@@ -205,6 +196,9 @@ fn str_() -> impl Parser<char, Expr, Error = Simple<char>> {
         double_quoted_string,
     ))
     .map(|s| Expr::Atom(Atom::String(s.into())))
+
+
+    //any().map(|s| Expr::Atom(Atom::Bool(true)))
 }
 
 #[test]
@@ -308,19 +302,17 @@ fn test_raw_str_parser() {
     );
 }
 
-pub fn parser() -> impl Parser<char, Expr, Error = Simple<char>> {
-    let ident = text::ident::<char, Simple<char>>()
+pub fn parser<'src>() -> impl Parser<'src, &'src str, Expr, extra::Err<Rich<'src, char>>> {
+    let ident = text::ident()
         .padded()
-        .map(Expr::Var)
-        .labelled("identifier");
+        .map(|identifier: &str| Expr::Var(identifier.into()));
 
     let null = just("null")
         .padded()
-        .map(|_| Expr::Atom(Atom::Null))
-        .labelled("null");
+        .map(|_| Expr::Atom(Atom::Null));
 
     let expr = recursive(|expr| {
-        let literal = choice((numbers(), boolean(), str_(), null)).labelled("literal");
+        let literal = choice((numbers(), boolean(), str_(), null));
 
         let expr_list = expr
             .clone()
@@ -335,8 +327,7 @@ pub fn parser() -> impl Parser<char, Expr, Error = Simple<char>> {
             .then(expr_list.clone())
             .then_ignore(just(')'))
             .map(|(name, args)| Expr::Member(Box::new(name), MemberOp::Call(args)))
-            .padded()
-            .labelled("function call");
+            .padded();
 
         // TODO support "a.b[0]"
         // attribute access should a recursive "member" expression
@@ -344,12 +335,12 @@ pub fn parser() -> impl Parser<char, Expr, Error = Simple<char>> {
 
         let attribute_access = ident
             .clone()
-            .then(just('.').ignore_then(member.clone()).repeated().at_least(1))
-            .foldl(|lhs, rhs| match rhs {
-                Expr::Var(v) => Expr::Member(Box::new(lhs), MemberOp::Attribute(v)),
-                _ => panic!("Expected identifier after '.'"),
-            })
-            .labelled("attribute");
+            .foldl(
+                just('.').ignore_then(member.clone()).repeated().at_least(1),
+                |lhs, rhs| match rhs {
+                    Expr::Var(v) => Expr::Member(Box::new(lhs), MemberOp::Attribute(v)),
+                    _ => panic!("Expected identifier after '.'"),
+                }, );
 
         // let index_access = ident
         //     .clone()
@@ -362,35 +353,32 @@ pub fn parser() -> impl Parser<char, Expr, Error = Simple<char>> {
 
         let index = expr_list
             .clone()
-            .delimited_by(just('['), just(']'))
-            .labelled("index");
+            .delimited_by(just('['), just(']'));
 
         let index_access = ident
-            .then(index.repeated().at_least(1))
-            .foldl(|lhs, rhs| Expr::Member(Box::new(lhs), MemberOp::Index(rhs)))
-            .labelled("index access");
+            .foldl(
+                index.repeated().at_least(1),
+                |lhs, rhs| Expr::Member(Box::new(lhs), MemberOp::Index(rhs)));
 
         let list = expr_list
             .clone()
             // Ignore trailing comma
             .delimited_by(just('['), just(']'))
-            .map(|items| Expr::List(items))
-            .labelled("list");
+            .map(|items| Expr::List(items));
 
         let map_item = expr
             .clone()
             .then_ignore(just(':'))
             .then(expr.clone())
-            .padded()
-            .labelled("map item");
+            .padded();
 
         let map = map_item
             .clone()
             .separated_by(just(','))
             .delimited_by(just('{'), just('}'))
             .padded()
-            .map(|items| Expr::Map(items))
-            .labelled("map");
+            .collect()
+            .map(|items| Expr::Map(items));
 
         let primary = function_call
             .or(attribute_access)
@@ -399,15 +387,14 @@ pub fn parser() -> impl Parser<char, Expr, Error = Simple<char>> {
             .or(expr
                 .clone()
                 .delimited_by(just('('), just(')'))
-                .labelled("parenthesized expression"))
+            )
             .or(list)
             .or(map)
             .or(ident)
             .padded()
-            .labelled("primary")
             .boxed();
 
-        let op = |c| just::<char, _, Simple<char>>(c).padded();
+        let op = |c| just(c).padded();
 
         let not = op('!')
             .ignore_then(primary.clone())
@@ -415,31 +402,29 @@ pub fn parser() -> impl Parser<char, Expr, Error = Simple<char>> {
 
         let negation = op('-')
             .ignore_then(primary.clone())
-            .map(|rhs| Expr::Unary(UnaryOp::Neg, Box::new(rhs)))
-            .labelled("negation");
+            .map(|rhs| Expr::Unary(UnaryOp::Neg, Box::new(rhs)));
 
         let unary = choice((not, negation))
             .or(primary)
             .padded()
-            .boxed()
-            .labelled("unary");
+            .boxed();
 
         let product_div_op = op('*').to(BinaryOp::Mul).or(op('/').to(BinaryOp::Div));
 
         let multiplication = unary
             .clone()
-            .then(product_div_op.then(unary.clone()).repeated())
-            .foldl(|lhs, (binary_op, rhs)| Expr::Binary(Box::new(lhs), binary_op, Box::new(rhs)))
-            .labelled("product_or_division")
+            .foldl(
+                product_div_op.then(unary.clone()).repeated(),
+                |lhs, (binary_op, rhs)| Expr::Binary(Box::new(lhs), binary_op, Box::new(rhs)))
             .boxed();
 
         let sum_sub_op = op('+').to(BinaryOp::Add).or(op('-').to(BinaryOp::Sub));
 
         let addition = multiplication
             .clone()
-            .then(sum_sub_op.then(multiplication.clone()).repeated())
-            .foldl(|lhs, (op, rhs)| Expr::Binary(Box::new(lhs), op, Box::new(rhs)))
-            .labelled("sub_or_sub")
+            .foldl(
+                sum_sub_op.then(multiplication.clone()).repeated(),
+                |lhs, (op, rhs)| Expr::Binary(Box::new(lhs), op, Box::new(rhs)))
             .boxed();
 
         let relationship_op = just("==")
@@ -452,9 +437,9 @@ pub fn parser() -> impl Parser<char, Expr, Error = Simple<char>> {
 
         let relation = addition
             .clone()
-            .then(relationship_op.then(addition.clone()).repeated())
-            .foldl(|lhs, (op, rhs)| Expr::Binary(Box::new(lhs), op, Box::new(rhs)))
-            .labelled("comparison")
+            .foldl(
+                relationship_op.then(addition.clone()).repeated(),
+                |lhs, (op, rhs)| Expr::Binary(Box::new(lhs), op, Box::new(rhs)))
             .boxed();
 
         relation
