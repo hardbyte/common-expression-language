@@ -1,4 +1,4 @@
-use cel_parser::ast::{BinaryOp, Expression, MemberOp, UnaryOp};
+use cel_parser::ast::{ArithmeticOp, Expression, MemberOp, UnaryOp};
 use serde_json;
 use serde_json::{Number, Value};
 use std::collections::HashMap;
@@ -72,9 +72,9 @@ pub fn eval<'a>(expr: &'a Expression, vars: &mut Vec<(&'a String, CelType)>) -> 
             // regardless of the sides' types.
             match (eval_lhs, eval_rhs) {
                 (CelType::String(a), CelType::String(b)) => match op {
-                    BinaryOp::Add => Ok(CelType::String(Rc::new(format!("{}{}", a, b)))),
-                    BinaryOp::Equals => Ok(CelType::Bool(a == b)),
-                    BinaryOp::NotEquals => Ok(CelType::Bool(a != b)),
+                    ArithmeticOp::Add => Ok(CelType::String(Rc::new(format!("{}{}", a, b)))),
+                    ArithmeticOp::Equals => Ok(CelType::Bool(a == b)),
+                    ArithmeticOp::NotEquals => Ok(CelType::Bool(a != b)),
                     _ => Err(format!(
                         "Binary operation {:?} not supported for String",
                         op
@@ -82,26 +82,26 @@ pub fn eval<'a>(expr: &'a Expression, vars: &mut Vec<(&'a String, CelType)>) -> 
                 },
                 (CelType::NumericCelType(a), CelType::NumericCelType(b)) => match op {
                     // Here we know that both the lhs and rhs are of type CelType::NumericCelType
-                    BinaryOp::Mul => Ok(CelType::NumericCelType(a * b)),
-                    BinaryOp::Div => Ok(CelType::NumericCelType(a / b)),
-                    BinaryOp::Add => Ok(CelType::NumericCelType(a + b)),
-                    BinaryOp::Sub => Ok(CelType::NumericCelType(a - b)),
-                    BinaryOp::Equals => Ok(CelType::Bool(a == b)),
-                    BinaryOp::NotEquals => Ok(CelType::Bool(a != b)),
-                    BinaryOp::LessThan => Ok(CelType::Bool(a < b)),
-                    BinaryOp::LessThanOrEqual => Ok(CelType::Bool(a <= b)),
-                    BinaryOp::GreaterThan => Ok(CelType::Bool(a > b)),
-                    BinaryOp::GreaterThanOrEqual => Ok(CelType::Bool(a >= b)),
+                    ArithmeticOp::Multiply => Ok(CelType::NumericCelType(a * b)),
+                    ArithmeticOp::Divide => Ok(CelType::NumericCelType(a / b)),
+                    ArithmeticOp::Add => Ok(CelType::NumericCelType(a + b)),
+                    ArithmeticOp::Subtract => Ok(CelType::NumericCelType(a - b)),
+                    ArithmeticOp::Equals => Ok(CelType::Bool(a == b)),
+                    ArithmeticOp::NotEquals => Ok(CelType::Bool(a != b)),
+                    ArithmeticOp::LessThan => Ok(CelType::Bool(a < b)),
+                    ArithmeticOp::LessThanOrEqual => Ok(CelType::Bool(a <= b)),
+                    ArithmeticOp::GreaterThan => Ok(CelType::Bool(a > b)),
+                    ArithmeticOp::GreaterThanOrEqual => Ok(CelType::Bool(a >= b)),
                 },
                 (CelType::List(a), CelType::List(b)) => match op {
-                    BinaryOp::Add => {
+                    ArithmeticOp::Add => {
                         let mut output: Vec<CelType> = Vec::with_capacity(a.len() + b.len());
                         output.extend_from_slice(&a);
                         output.extend_from_slice(&b);
                         Ok(CelType::List(Rc::new(output)))
                     }
-                    BinaryOp::Equals => Ok(CelType::Bool(a == b)),
-                    BinaryOp::NotEquals => Ok(CelType::Bool(a != b)),
+                    ArithmeticOp::Equals => Ok(CelType::Bool(a == b)),
+                    ArithmeticOp::NotEquals => Ok(CelType::Bool(a != b)),
                     _ => Err(format!("Unsupported list operation {:?}", op)),
                 },
                 (_, _) => Err(format!(

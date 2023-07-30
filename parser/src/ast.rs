@@ -19,11 +19,11 @@ pub enum UnaryOp {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum BinaryOp {
+pub enum ArithmeticOp {
     Add,
-    Sub,
-    Mul,
-    Div,
+    Subtract,
+    Multiply,
+    Divide,
 
     // "<" | "<=" | ">=" | ">" | "==" | "!=" | "in"
     // Could be BinaryRel instead, but not sure if that's necessary
@@ -54,7 +54,7 @@ pub enum Expression {
 
     Unary(UnaryOp, Box<Expression>),
 
-    Binary(Box<Expression>, BinaryOp, Box<Expression>),
+    Binary(Box<Expression>, ArithmeticOp, Box<Expression>),
 
     List(Vec<Expression>),
 

@@ -1,4 +1,4 @@
-use crate::ast::{Atom, BinaryOp, Expression, MemberOp, UnaryOp};
+use crate::ast::{Atom, ArithmeticOp, Expression, MemberOp, UnaryOp};
 
 use chumsky::prelude::*;
 use chumsky::Parser;
@@ -422,7 +422,7 @@ pub fn parser() -> impl Parser<char, Expression, Error = Simple<char>> {
             .boxed()
             .labelled("unary");
 
-        let product_div_op = op('*').to(BinaryOp::Mul).or(op('/').to(BinaryOp::Div));
+        let product_div_op = op('*').to(ArithmeticOp::Multiply).or(op('/').to(ArithmeticOp::Divide));
 
         let multiplication = unary
             .clone()
@@ -431,7 +431,7 @@ pub fn parser() -> impl Parser<char, Expression, Error = Simple<char>> {
             .labelled("product_or_division")
             .boxed();
 
-        let sum_sub_op = op('+').to(BinaryOp::Add).or(op('-').to(BinaryOp::Sub));
+        let sum_sub_op = op('+').to(ArithmeticOp::Add).or(op('-').to(ArithmeticOp::Subtract));
 
         let addition = multiplication
             .clone()
@@ -441,12 +441,12 @@ pub fn parser() -> impl Parser<char, Expression, Error = Simple<char>> {
             .boxed();
 
         let relationship_op = just("==")
-            .to(BinaryOp::Equals)
-            .or(just("!=").to(BinaryOp::NotEquals))
-            .or(just(">=").to(BinaryOp::GreaterThanOrEqual))
-            .or(just("<=").to(BinaryOp::LessThanOrEqual))
-            .or(just('>').to(BinaryOp::GreaterThan))
-            .or(just('<').to(BinaryOp::LessThan));
+            .to(ArithmeticOp::Equals)
+            .or(just("!=").to(ArithmeticOp::NotEquals))
+            .or(just(">=").to(ArithmeticOp::GreaterThanOrEqual))
+            .or(just("<=").to(ArithmeticOp::LessThanOrEqual))
+            .or(just('>').to(ArithmeticOp::GreaterThan))
+            .or(just('<').to(ArithmeticOp::LessThan));
 
         let relation = addition
             .clone()
@@ -487,7 +487,7 @@ fn test_parser_binary_bool_expressions() {
         parser().parse("true == true"),
         Ok(Expression::Binary(
             Box::new(Expression::Atom(Atom::Bool(true))),
-            BinaryOp::Equals,
+            ArithmeticOp::Equals,
             Box::new(Expression::Atom(Atom::Bool(true)))
         ))
     );
@@ -587,7 +587,7 @@ fn test_parser_binary_product_expressions() {
         parser().parse("2 * 3"),
         Ok(Expression::Binary(
             Box::new(Expression::Atom(Atom::Int(2))),
-            BinaryOp::Mul,
+            ArithmeticOp::Multiply,
             Box::new(Expression::Atom(Atom::Int(3)))
         ))
     );
@@ -595,7 +595,7 @@ fn test_parser_binary_product_expressions() {
         parser().parse("2 * -3"),
         Ok(Expression::Binary(
             Box::new(Expression::Atom(Atom::Int(2))),
-            BinaryOp::Mul,
+            ArithmeticOp::Multiply,
             Box::new(Expression::Unary(
                 UnaryOp::Neg,
                 Box::new(Expression::Atom(Atom::Int(3)))
@@ -607,7 +607,7 @@ fn test_parser_binary_product_expressions() {
         parser().parse("2 / -3"),
         Ok(Expression::Binary(
             Box::new(Expression::Atom(Atom::Int(2))),
-            BinaryOp::Div,
+            ArithmeticOp::Divide,
             Box::new(Expression::Unary(
                 UnaryOp::Neg,
                 Box::new(Expression::Atom(Atom::Int(3)))
@@ -622,7 +622,7 @@ fn test_parser_sum_expressions() {
         parser().parse("2 + 3"),
         Ok(Expression::Binary(
             Box::new(Expression::Atom(Atom::Int(2))),
-            BinaryOp::Add,
+            ArithmeticOp::Add,
             Box::new(Expression::Atom(Atom::Int(3)))
         ))
     );
@@ -630,7 +630,7 @@ fn test_parser_sum_expressions() {
         parser().parse("2 - -3"),
         Ok(Expression::Binary(
             Box::new(Expression::Atom(Atom::Int(2))),
-            BinaryOp::Sub,
+            ArithmeticOp::Subtract,
             Box::new(Expression::Unary(
                 UnaryOp::Neg,
                 Box::new(Expression::Atom(Atom::Int(3)))
