@@ -41,7 +41,7 @@ fn numbers() -> impl Parser<char, Expr, Error = Simple<char>> {
         .chain::<char, _, _>(one_of("+-").or_not())
         .chain::<char, _, _>(digits.clone());
 
-    let floating = just('-')
+    let float_or_int = just('-')
         .or_not()
         .chain::<char, _, _>(text::int::<char, Simple<char>>(10))
         .chain::<char, _, _>(frac.or_not().flatten())
@@ -61,10 +61,8 @@ fn numbers() -> impl Parser<char, Expr, Error = Simple<char>> {
     let unsigned_integer = text::int::<char, Simple<char>>(10)
         .then_ignore(just('u'))
         .map(|s: String| Expr::Atom(Atom::UInt(s.as_str().parse().unwrap())));
-    let integer = text::int::<char, Simple<char>>(10)
-        .map(|s: String| Expr::Atom(Atom::Int(s.as_str().parse().unwrap())));
 
-    choice((unsigned_integer, floating, integer))
+    choice((unsigned_integer, float_or_int))
         .padded()
         .labelled("number")
 }
