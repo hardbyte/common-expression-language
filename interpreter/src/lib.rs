@@ -1,4 +1,4 @@
-use cel_parser::ast::{BinaryOp, Expr, MemberOp, UnaryOp};
+use cel_parser::ast::{BinaryOp, Expression, MemberOp, UnaryOp};
 use serde_json;
 use serde_json::{Number, Value};
 use std::collections::HashMap;
@@ -9,10 +9,10 @@ use types::{CelFunction, CelMap, CelMapKey, CelType, NumericCelType};
 mod strings;
 pub mod types;
 
-pub fn eval<'a>(expr: &'a Expr, vars: &mut Vec<(&'a String, CelType)>) -> Result<CelType, String> {
+pub fn eval<'a>(expr: &'a Expression, vars: &mut Vec<(&'a String, CelType)>) -> Result<CelType, String> {
     match expr {
-        Expr::Atom(atom) => Ok(atom.into()),
-        Expr::Var(name) => {
+        Expression::Atom(atom) => Ok(atom.into()),
+        Expression::Var(name) => {
             for (var_name, var_value) in vars.iter() {
                 if *var_name == name {
                     return Ok(var_value.clone());
@@ -45,7 +45,7 @@ pub fn eval<'a>(expr: &'a Expr, vars: &mut Vec<(&'a String, CelType)>) -> Result
             Err(format!("Variable {} not found", name))
         }
 
-        Expr::Unary(op, atom) => {
+        Expression::Unary(op, atom) => {
             let inner = eval(atom, vars)?;
             match op {
                 UnaryOp::Neg => match inner {
@@ -58,7 +58,7 @@ pub fn eval<'a>(expr: &'a Expr, vars: &mut Vec<(&'a String, CelType)>) -> Result
                 },
             }
         }
-        Expr::Binary(lhs, op, rhs) => {
+        Expression::Binary(lhs, op, rhs) => {
             let eval_lhs = eval(lhs, vars)?;
             // For now I evaluate both sides and then destruct matching types
             // then match the operation. However this is not ideal as it will
@@ -111,7 +111,7 @@ pub fn eval<'a>(expr: &'a Expr, vars: &mut Vec<(&'a String, CelType)>) -> Result
             }
         }
 
-        Expr::List(exprs) => {
+        Expression::List(exprs) => {
             let mut output: Vec<CelType> = Vec::with_capacity(exprs.len());
             // Evaluate each expression in the list
             for expr in exprs {
@@ -121,7 +121,7 @@ pub fn eval<'a>(expr: &'a Expr, vars: &mut Vec<(&'a String, CelType)>) -> Result
             Ok(CelType::List(Rc::new(output)))
         }
 
-        Expr::Map(entries) => {
+        Expression::Map(entries) => {
             let mut output: HashMap<CelMapKey, CelType> = HashMap::with_capacity(entries.len());
             // Evaluate each key and expression in the list
             for (key, expr) in entries {
@@ -133,7 +133,7 @@ pub fn eval<'a>(expr: &'a Expr, vars: &mut Vec<(&'a String, CelType)>) -> Result
                 map: Rc::new(output),
             }))
         }
-        Expr::Member(lhs, MemberOp::Index(index_expressions)) => {
+        Expression::Member(lhs, MemberOp::Index(index_expressions)) => {
             println!("Evaluating a member[index]");
             // What can we assert about the LHS?
             let evaluated_lhs = eval(lhs, vars)?;
@@ -181,7 +181,7 @@ pub fn eval<'a>(expr: &'a Expr, vars: &mut Vec<(&'a String, CelType)>) -> Result
             }
             //Err(format!("Need to handle member operation"))
         }
-        Expr::Member(lhs, MemberOp::Call(args)) => {
+        Expression::Member(lhs, MemberOp::Call(args)) => {
             let evaluated_lhs = eval(lhs, vars)?;
             match evaluated_lhs {
                 CelType::Function(f) => {

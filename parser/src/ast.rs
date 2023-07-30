@@ -40,24 +40,24 @@ pub enum BinaryOp {
 pub enum MemberOp {
     // a.b, a[b, c...], a(b, c, ...)
     Attribute(String),
-    Index(Vec<Expr>),
-    Call(Vec<Expr>),
+    Index(Vec<Expression>),
+    Call(Vec<Expression>),
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum Expr {
+pub enum Expression {
     Atom(Atom),
 
     Var(String),
 
-    Member(Box<Expr>, MemberOp),
+    Member(Box<Expression>, MemberOp),
 
-    Unary(UnaryOp, Box<Expr>),
+    Unary(UnaryOp, Box<Expression>),
 
-    Binary(Box<Expr>, BinaryOp, Box<Expr>),
+    Binary(Box<Expression>, BinaryOp, Box<Expression>),
 
-    List(Vec<Expr>),
+    List(Vec<Expression>),
 
     // Associative arrays with int, uint, bool, or string keys
-    Map(Vec<(Expr, Expr)>),
+    Map(Vec<(Expression, Expression)>),
 }
