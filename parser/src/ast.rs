@@ -4,7 +4,7 @@ use std::rc::Rc;
 pub enum Atom {
     Int(i64),
     UInt(u64),
-    Double(f64),
+    Float(f64),
     // A reference counted String
     String(Rc<String>),
     Bytes(Rc<Vec<u8>>),
@@ -25,9 +25,11 @@ pub enum ArithmeticOp {
     Multiply,
     Divide,
 
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum RelationOp {
     // "<" | "<=" | ">=" | ">" | "==" | "!=" | "in"
-    // Could be BinaryRel instead, but not sure if that's necessary
-    // In,
     NotEquals,
     Equals,
     GreaterThan,
@@ -37,24 +39,25 @@ pub enum ArithmeticOp {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum MemberOp {
+pub enum Member {
     // a.b, a[b, c...], a(b, c, ...)
     Attribute(String),
+    FunctionCall(Vec<Expression>),
     Index(Vec<Expression>),
-    Call(Vec<Expression>),
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Expression {
     Atom(Atom),
 
-    Var(String),
+    Ident(String),
 
-    Member(Box<Expression>, MemberOp),
+    Member(Box<Expression>, Member),
 
     Unary(UnaryOp, Box<Expression>),
 
-    Binary(Box<Expression>, ArithmeticOp, Box<Expression>),
+    Arithmetic(Box<Expression>, ArithmeticOp, Box<Expression>),
+    Relation(Box<Expression>, RelationOp, Box<Expression>),
 
     List(Vec<Expression>),
 

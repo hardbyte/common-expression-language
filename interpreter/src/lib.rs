@@ -1,4 +1,4 @@
-use cel_parser::ast::{ArithmeticOp, Expression, MemberOp, UnaryOp};
+use cel_parser::ast::{ArithmeticOp, Expression, Member, RelationOp, UnaryOp};
 use serde_json;
 use serde_json::{Number, Value};
 use std::collections::HashMap;
@@ -12,7 +12,7 @@ pub mod types;
 pub fn eval<'a>(expr: &'a Expression, vars: &mut Vec<(&'a String, CelType)>) -> Result<CelType, String> {
     match expr {
         Expression::Atom(atom) => Ok(atom.into()),
-        Expression::Var(name) => {
+        Expression::Ident(name) => {
             for (var_name, var_value) in vars.iter() {
                 if *var_name == name {
                     return Ok(var_value.clone());
@@ -58,7 +58,43 @@ pub fn eval<'a>(expr: &'a Expression, vars: &mut Vec<(&'a String, CelType)>) -> 
                 },
             }
         }
-        Expression::Binary(lhs, op, rhs) => {
+        Expression::Relation(lhs, op, rhs) => {
+            let eval_lhs = eval(lhs, vars)?;
+            // For now I evaluate both sides and then destruct matching types
+            // then match the operation. However this is not ideal as it will
+            // evaluate both sides even if it is not needed.
+
+            let eval_rhs = eval(rhs, vars)?;
+
+            // Not every CelType implement all binary ops.
+            // It might make sense to flip it and match first on the operation,
+            // this would mean operations such as `==` and `!=` could have one implementation
+            // regardless of the sides' types.
+            match (eval_lhs, eval_rhs) {
+                (CelType::String(a), CelType::String(b)) => match op {
+                    RelationOp::Equals => Ok(CelType::Bool(a == b)),
+                    RelationOp::NotEquals => Ok(CelType::Bool(a != b)),
+                    _ => Err(format!("Binary operation {:?} not supported for String", op)),
+                },
+                (CelType::NumericCelType(a), CelType::NumericCelType(b)) => match op {
+                    // Here we know that both the lhs and rhs are of type CelType::NumericCelType
+                    RelationOp::Equals => Ok(CelType::Bool(a == b)),
+                    RelationOp::NotEquals => Ok(CelType::Bool(a != b)),
+                    RelationOp::LessThan => Ok(CelType::Bool(a < b)),
+                    RelationOp::LessThanOrEqual => Ok(CelType::Bool(a <= b)),
+                    RelationOp::GreaterThan => Ok(CelType::Bool(a > b)),
+                    RelationOp::GreaterThanOrEqual => Ok(CelType::Bool(a >= b)),
+                },
+                (CelType::List(a), CelType::List(b)) => match op {
+                    RelationOp::Equals => Ok(CelType::Bool(a == b)),
+                    RelationOp::NotEquals => Ok(CelType::Bool(a != b)),
+                    _ => Err(format!("Unsupported list operation {:?}", op)),
+                },
+                (_, _) => Err(format!("Unsupported relation between {:?} and {:?}", lhs, rhs)),
+            }
+        },
+
+        Expression::Arithmetic(lhs, op, rhs) => {
             let eval_lhs = eval(lhs, vars)?;
             // For now I evaluate both sides and then destruct matching types
             // then match the operation. However this is not ideal as it will
@@ -73,12 +109,7 @@ pub fn eval<'a>(expr: &'a Expression, vars: &mut Vec<(&'a String, CelType)>) -> 
             match (eval_lhs, eval_rhs) {
                 (CelType::String(a), CelType::String(b)) => match op {
                     ArithmeticOp::Add => Ok(CelType::String(Rc::new(format!("{}{}", a, b)))),
-                    ArithmeticOp::Equals => Ok(CelType::Bool(a == b)),
-                    ArithmeticOp::NotEquals => Ok(CelType::Bool(a != b)),
-                    _ => Err(format!(
-                        "Binary operation {:?} not supported for String",
-                        op
-                    )),
+                    _ => Err(format!("Unsupported list operation {:?}", op)),
                 },
                 (CelType::NumericCelType(a), CelType::NumericCelType(b)) => match op {
                     // Here we know that both the lhs and rhs are of type CelType::NumericCelType
@@ -86,12 +117,6 @@ pub fn eval<'a>(expr: &'a Expression, vars: &mut Vec<(&'a String, CelType)>) -> 
                     ArithmeticOp::Divide => Ok(CelType::NumericCelType(a / b)),
                     ArithmeticOp::Add => Ok(CelType::NumericCelType(a + b)),
                     ArithmeticOp::Subtract => Ok(CelType::NumericCelType(a - b)),
-                    ArithmeticOp::Equals => Ok(CelType::Bool(a == b)),
-                    ArithmeticOp::NotEquals => Ok(CelType::Bool(a != b)),
-                    ArithmeticOp::LessThan => Ok(CelType::Bool(a < b)),
-                    ArithmeticOp::LessThanOrEqual => Ok(CelType::Bool(a <= b)),
-                    ArithmeticOp::GreaterThan => Ok(CelType::Bool(a > b)),
-                    ArithmeticOp::GreaterThanOrEqual => Ok(CelType::Bool(a >= b)),
                 },
                 (CelType::List(a), CelType::List(b)) => match op {
                     ArithmeticOp::Add => {
@@ -100,8 +125,6 @@ pub fn eval<'a>(expr: &'a Expression, vars: &mut Vec<(&'a String, CelType)>) -> 
                         output.extend_from_slice(&b);
                         Ok(CelType::List(Rc::new(output)))
                     }
-                    ArithmeticOp::Equals => Ok(CelType::Bool(a == b)),
-                    ArithmeticOp::NotEquals => Ok(CelType::Bool(a != b)),
                     _ => Err(format!("Unsupported list operation {:?}", op)),
                 },
                 (_, _) => Err(format!(
@@ -133,7 +156,7 @@ pub fn eval<'a>(expr: &'a Expression, vars: &mut Vec<(&'a String, CelType)>) -> 
                 map: Rc::new(output),
             }))
         }
-        Expression::Member(lhs, MemberOp::Index(index_expressions)) => {
+        Expression::Member(lhs, Member::Index(index_expressions)) => {
             println!("Evaluating a member[index]");
             // What can we assert about the LHS?
             let evaluated_lhs = eval(lhs, vars)?;
@@ -181,7 +204,7 @@ pub fn eval<'a>(expr: &'a Expression, vars: &mut Vec<(&'a String, CelType)>) -> 
             }
             //Err(format!("Need to handle member operation"))
         }
-        Expression::Member(lhs, MemberOp::Call(args)) => {
+        Expression::Member(lhs, Member::FunctionCall(args)) => {
             let evaluated_lhs = eval(lhs, vars)?;
             match evaluated_lhs {
                 CelType::Function(f) => {
