@@ -1,4 +1,4 @@
-use crate::ast::{Atom, ArithmeticOp, Expression, Member, UnaryOp, RelationOp};
+use crate::ast::{ArithmeticOp, Atom, Expression, Member, RelationOp, UnaryOp};
 
 use chumsky::prelude::*;
 use chumsky::Parser;
@@ -12,8 +12,14 @@ fn boolean() -> impl Parser<char, Expression, Error = Simple<char>> {
 
 #[test]
 fn test_boolean_parser() {
-    assert_eq!(boolean().parse("true"), Ok(Expression::Atom(Atom::Bool(true))));
-    assert_eq!(boolean().parse("false"), Ok(Expression::Atom(Atom::Bool(false))));
+    assert_eq!(
+        boolean().parse("true"),
+        Ok(Expression::Atom(Atom::Bool(true)))
+    );
+    assert_eq!(
+        boolean().parse("false"),
+        Ok(Expression::Atom(Atom::Bool(false)))
+    );
     assert!(boolean().parse("tru").is_err());
     assert!(boolean().parse("False").is_err());
 }
@@ -82,12 +88,18 @@ fn test_number_parser_int() {
     // Debatable if this should be allowed. Ref CEL Spec:
     // https://github.com/google/cel-spec/blob/master/doc/langdef.md#numeric-values
     // "negative integers are produced by the unary negation operator"
-    assert_eq!(numbers().parse("-100"), Ok(Expression::Atom(Atom::Int(-100))));
+    assert_eq!(
+        numbers().parse("-100"),
+        Ok(Expression::Atom(Atom::Int(-100)))
+    );
 }
 
 #[test]
 fn test_number_parser_double() {
-    assert_eq!(numbers().parse("1e3"), Ok(Expression::Atom(Atom::Float(1000.0))));
+    assert_eq!(
+        numbers().parse("1e3"),
+        Ok(Expression::Atom(Atom::Float(1000.0)))
+    );
     assert_eq!(
         numbers().parse("-1e-3"),
         Ok(Expression::Atom(Atom::Float(-0.001)))
@@ -248,11 +260,15 @@ fn test_str_inner_parser() {
 fn test_str_parser() {
     assert_eq!(
         str_().parse("'Hello!'"),
-        Ok(Expression::Atom(Atom::String(String::from("Hello!").into())))
+        Ok(Expression::Atom(Atom::String(
+            String::from("Hello!").into()
+        )))
     );
     assert_eq!(
         str_().parse("\"Hello!\""),
-        Ok(Expression::Atom(Atom::String(String::from("Hello!").into())))
+        Ok(Expression::Atom(Atom::String(
+            String::from("Hello!").into()
+        )))
     );
     assert_eq!(
         str_().parse("'\n'"),
@@ -290,11 +306,15 @@ fn test_raw_str_parser() {
     );
     assert_eq!(
         str_().parse("r\"Hello!\""),
-        Ok(Expression::Atom(Atom::String(String::from("Hello!").into())))
+        Ok(Expression::Atom(Atom::String(
+            String::from("Hello!").into()
+        )))
     );
     assert_eq!(
         str_().parse("R\"Hello!\""),
-        Ok(Expression::Atom(Atom::String(String::from("Hello!").into())))
+        Ok(Expression::Atom(Atom::String(
+            String::from("Hello!").into()
+        )))
     );
     assert_eq!(
         str_().parse(r"r'''hello'''"),
@@ -422,16 +442,22 @@ pub fn parser() -> impl Parser<char, Expression, Error = Simple<char>> {
             .boxed()
             .labelled("unary");
 
-        let product_div_op = op('*').to(ArithmeticOp::Multiply).or(op('/').to(ArithmeticOp::Divide));
+        let product_div_op = op('*')
+            .to(ArithmeticOp::Multiply)
+            .or(op('/').to(ArithmeticOp::Divide));
 
         let multiplication = unary
             .clone()
             .then(product_div_op.then(unary.clone()).repeated())
-            .foldl(|lhs, (binary_op, rhs)| Expression::Arithmetic(Box::new(lhs), binary_op, Box::new(rhs)))
+            .foldl(|lhs, (binary_op, rhs)| {
+                Expression::Arithmetic(Box::new(lhs), binary_op, Box::new(rhs))
+            })
             .labelled("product_or_division")
             .boxed();
 
-        let sum_sub_op = op('+').to(ArithmeticOp::Add).or(op('-').to(ArithmeticOp::Subtract));
+        let sum_sub_op = op('+')
+            .to(ArithmeticOp::Add)
+            .or(op('-').to(ArithmeticOp::Subtract));
 
         let addition = multiplication
             .clone()
@@ -463,8 +489,14 @@ pub fn parser() -> impl Parser<char, Expression, Error = Simple<char>> {
 
 #[test]
 fn test_parser_bool() {
-    assert_eq!(parser().parse("true"), Ok(Expression::Atom(Atom::Bool(true))));
-    assert_eq!(parser().parse("false"), Ok(Expression::Atom(Atom::Bool(false))));
+    assert_eq!(
+        parser().parse("true"),
+        Ok(Expression::Atom(Atom::Bool(true)))
+    );
+    assert_eq!(
+        parser().parse("false"),
+        Ok(Expression::Atom(Atom::Bool(false)))
+    );
     assert_eq!(
         parser().parse("!false"),
         Ok(Expression::Unary(
@@ -506,7 +538,9 @@ fn test_parser_str() {
 
     assert_eq!(
         parser().parse("'''true\n'''"),
-        Ok(Expression::Atom(Atom::String(String::from("true\n").into())))
+        Ok(Expression::Atom(Atom::String(
+            String::from("true\n").into()
+        )))
     );
     assert_eq!(
         parser().parse(r##""""He said "Hi I'm Brian".""""##),
@@ -528,7 +562,10 @@ fn test_parser_raw_strings() {
 fn test_parser_positive_numbers() {
     assert_eq!(parser().parse("1"), Ok(Expression::Atom(Atom::Int(1))));
     assert_eq!(parser().parse("1u"), Ok(Expression::Atom(Atom::UInt(1))));
-    assert_eq!(parser().parse("1.0"), Ok(Expression::Atom(Atom::Float(1.0))));
+    assert_eq!(
+        parser().parse("1.0"),
+        Ok(Expression::Atom(Atom::Float(1.0)))
+    );
 }
 
 #[test]

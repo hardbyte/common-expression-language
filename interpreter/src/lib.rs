@@ -9,7 +9,10 @@ use types::{CelFunction, CelMap, CelMapKey, CelType, NumericCelType};
 mod strings;
 pub mod types;
 
-pub fn eval<'a>(expr: &'a Expression, vars: &mut Vec<(&'a String, CelType)>) -> Result<CelType, String> {
+pub fn eval<'a>(
+    expr: &'a Expression,
+    vars: &mut Vec<(&'a String, CelType)>,
+) -> Result<CelType, String> {
     match expr {
         Expression::Atom(atom) => Ok(atom.into()),
         Expression::Ident(name) => {
@@ -74,7 +77,10 @@ pub fn eval<'a>(expr: &'a Expression, vars: &mut Vec<(&'a String, CelType)>) -> 
                 (CelType::String(a), CelType::String(b)) => match op {
                     RelationOp::Equals => Ok(CelType::Bool(a == b)),
                     RelationOp::NotEquals => Ok(CelType::Bool(a != b)),
-                    _ => Err(format!("Binary operation {:?} not supported for String", op)),
+                    _ => Err(format!(
+                        "Binary operation {:?} not supported for String",
+                        op
+                    )),
                 },
                 (CelType::NumericCelType(a), CelType::NumericCelType(b)) => match op {
                     // Here we know that both the lhs and rhs are of type CelType::NumericCelType
@@ -90,9 +96,12 @@ pub fn eval<'a>(expr: &'a Expression, vars: &mut Vec<(&'a String, CelType)>) -> 
                     RelationOp::NotEquals => Ok(CelType::Bool(a != b)),
                     _ => Err(format!("Unsupported list operation {:?}", op)),
                 },
-                (_, _) => Err(format!("Unsupported relation between {:?} and {:?}", lhs, rhs)),
+                (_, _) => Err(format!(
+                    "Unsupported relation between {:?} and {:?}",
+                    lhs, rhs
+                )),
             }
-        },
+        }
 
         Expression::Arithmetic(lhs, op, rhs) => {
             let eval_lhs = eval(lhs, vars)?;

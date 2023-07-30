@@ -24,7 +24,6 @@ pub enum ArithmeticOp {
     Subtract,
     Multiply,
     Divide,
-
 }
 
 #[derive(Debug, PartialEq, Clone)]
