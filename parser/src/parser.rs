@@ -339,19 +339,13 @@ pub fn parser() -> impl Parser<char, Expression, Error = Simple<char>> {
 
     let literal = choice((numbers(), boolean(), str_(), null)).labelled("literal");
 
-    let attribute_access = just('.')
-        .ignore_then(ident.clone())
-        .map(|rhs| match rhs {
-            Expression::Ident(name) => Member::Attribute(name),
-            _ => panic!("Expected ident!")
-        });
-
-
+    let attribute_access = just('.').ignore_then(ident.clone()).map(|rhs| match rhs {
+        Expression::Ident(name) => Member::Attribute(name),
+        _ => panic!("Expected ident!"),
+    });
 
     let expr = recursive(|expr| {
-
-        let expr_in_paren = expr.clone()
-            .delimited_by(just('('), just(')'));
+        let expr_in_paren = expr.clone().delimited_by(just('('), just(')'));
 
         let expr_list = expr
             .clone()
@@ -363,9 +357,7 @@ pub fn parser() -> impl Parser<char, Expression, Error = Simple<char>> {
         let function_call = just('(')
             .ignore_then(expr_list.clone())
             .then_ignore(just(')'))
-            .map(|args|
-                Member::FunctionCall(args)
-            )
+            .map(|args| Member::FunctionCall(args))
             .labelled("primary function call");
 
         // TODO this moves to member
@@ -412,23 +404,26 @@ pub fn parser() -> impl Parser<char, Expression, Error = Simple<char>> {
         .boxed();
 
         let member = recursive(|member| {
-            let member_chain = primary.clone()
-                .then(choice((
-                    attribute_access.clone(),
-                    function_call.clone(),
-                    // index access
-                    )).repeated())
-                .map(
-                    |(lhs_expression, members)|
-                        members.into_iter().fold(lhs_expression, |acc, member| {
-                            Expression::Member(Box::new(acc), member)
-                        })
+            let member_chain = primary
+                .clone()
+                .then(
+                    choice((
+                        attribute_access.clone(),
+                        function_call.clone(),
+                        // index access
+                    ))
+                    .repeated(),
                 )
+                .map(|(lhs_expression, members)| {
+                    members.into_iter().fold(lhs_expression, |acc, member| {
+                        Expression::Member(Box::new(acc), member)
+                    })
+                })
                 .labelled("member");
 
             choice((member_chain, primary.clone()))
-        }).boxed();
-
+        })
+        .boxed();
 
         let op = |c| just::<char, _, Simple<char>>(c).padded();
 
@@ -489,10 +484,7 @@ pub fn parser() -> impl Parser<char, Expression, Error = Simple<char>> {
         relation
     });
 
-    expr
-        .clone()
-        .padded()
-        .labelled("expression")
+    expr.clone().padded().labelled("expression")
 }
 
 #[test]
