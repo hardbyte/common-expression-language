@@ -33,10 +33,11 @@ Evaluating program
 NumericCelType(Float(-15.0))
 ```
 
-Note the parser is not complete, so it will fail on some valid expressions. At this stage I'm not
-intending to implement a full interpreter with all built-in functions, just enough to get a feel for
-the language and the parser. Have implemented basic support for strings, numbers, bools, lists, maps,
-variables, and basic operators:
+Note the parser is not complete, so it will fail on some valid expressions including
+Durations. At this stage I'm not intending to implement a full interpreter with all
+built-in functions, just enough to get a feel for the language and the parser. Have
+implemented basic support for strings, numbers, bools, lists, maps, variables, and
+basic operators:
 
 ```shell
 cargo run -- --expression="size('hello world') > 5u"

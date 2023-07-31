@@ -347,46 +347,25 @@ pub fn parser() -> impl Parser<char, Expression, Error = Simple<char>> {
             .then_ignore(just(',').or_not())
             .collect::<Vec<_>>();
 
+        // Primary function call
         let function_call = ident
             .clone()
             .then_ignore(just('('))
             .then(expr_list.clone())
             .then_ignore(just(')'))
-            .map(|(name, args)| Expression::Member(Box::new(name), Member::FunctionCall(args)))
-            .padded()
-            .labelled("function call");
+            .map(|(lhs, args)| Expression::Member(Box::new(lhs), Member::FunctionCall(args)))
+            //.padded()
+            .labelled("primary function call");
 
-        // TODO support "a.b[0]"
-        // attribute access should a recursive "member" expression
-        let member = ident.clone();
-
-        let attribute_access = ident
-            .clone()
-            .then(just('.').ignore_then(member.clone()).repeated().at_least(1))
-            .foldl(|lhs, rhs| match rhs {
-                Expression::Ident(v) => Expression::Member(Box::new(lhs), Member::Attribute(v)),
-                _ => panic!("Expected identifier after '.'"),
-            })
-            .labelled("attribute");
-
-        // let index_access = ident
+        // TODO this moves to member
+        // let index = expr_list
         //     .clone()
-        //     .then_ignore(just('['))
-        //     .then(expr.clone())
-        //     .then_ignore(just(']'))
-        //     .map(|(member, rhs)| Expr::Member(Box::new(member), MemberOp::Index(Box::new(rhs))))
-        //     .padded()
+        //     .delimited_by(just('['), just(']'))
+        //     .labelled("index");
+        // let index_access = ident
+        //     .then(index.repeated().at_least(1))
+        //     .foldl(|lhs, rhs| Expression::Member(Box::new(lhs), Member::Index(rhs)))
         //     .labelled("index access");
-
-        let index = expr_list
-            .clone()
-            .delimited_by(just('['), just(']'))
-            .labelled("index");
-
-        let index_access = ident
-            .then(index.repeated().at_least(1))
-            .foldl(|lhs, rhs| Expression::Member(Box::new(lhs), Member::Index(rhs)))
-            .labelled("index access");
 
         let list = expr_list
             .clone()
@@ -410,34 +389,83 @@ pub fn parser() -> impl Parser<char, Expression, Error = Simple<char>> {
             .map(|items| Expression::Map(items))
             .labelled("map");
 
-        let primary = function_call
-            .or(attribute_access)
-            .or(index_access)
-            .or(literal)
-            .or(expr
-                .clone()
+        let primary = choice((
+            just('.').or_not().ignore_then(
+                choice((
+                    //attribute_access,
+                    function_call,
+                    ident,
+                )), //ident
+            ),
+            expr.clone()
                 .delimited_by(just('('), just(')'))
-                .labelled("parenthesized expression"))
-            .or(list)
-            .or(map)
-            .or(ident)
-            .padded()
-            .labelled("primary")
-            .boxed();
+                .labelled("parenthesized expression"),
+            list,
+            map,
+            // TODO field inits here
+            literal,
+        ))
+        .labelled("primary")
+        .boxed();
+
+        let member = recursive(|member| {
+            let member_attribute_access = member
+                .clone()
+                .then(just('.').ignore_then(ident.clone()))
+                .to(Expression::Atom(Atom::Null));
+
+            // .map(|(lhs_expression, ident_expression)|
+            //     match ident_expression {
+            //         Expression::Ident(name) => {
+            //             Expression::Member(Box::new(lhs_expression), Member::Attribute(name.to_string()))
+            //         },
+            //         _ => panic!("Expected identifier after '.'")
+            //     });
+
+            // let attribute_access = ident
+            //     .clone()
+            //     .then(just('.').ignore_then(ident.clone()))
+            //     .map(|(lhs, rhs)| match rhs {
+            //         Expression::Ident(v) => Expression::Member(Box::new(lhs), Member::Attribute(v)),
+            //         _ => panic!("Expected identifier after '.'"),
+            //     })
+            //     .labelled("attribute");
+
+            let function_member = just('(')
+                .ignore_then(expr_list.clone())
+                .then_ignore(just(')'))
+                .map(|args| Member::FunctionCall(args))
+                .padded()
+                .labelled("member function call");
+
+            let member_function_call = member_attribute_access.clone().then(function_member).map(
+                |(lhs_expression, function_call_expression)| {
+                    Expression::Member(Box::new(lhs_expression), function_call_expression)
+                },
+            );
+
+            choice((
+                // Something going wrong when I include these:
+                // member_function_call,
+                member_attribute_access,
+                primary,
+            ))
+            .labelled("member")
+        });
 
         let op = |c| just::<char, _, Simple<char>>(c).padded();
 
         let not = op('!')
-            .ignore_then(primary.clone())
+            .ignore_then(member.clone())
             .map(|rhs| Expression::Unary(UnaryOp::Not, Box::new(rhs)));
 
         let negation = op('-')
-            .ignore_then(primary.clone())
+            .ignore_then(member.clone())
             .map(|rhs| Expression::Unary(UnaryOp::Neg, Box::new(rhs)))
             .labelled("negation");
 
         let unary = choice((not, negation))
-            .or(primary)
+            .or(member.clone())
             .padded()
             .boxed()
             .labelled("unary");
@@ -501,14 +529,14 @@ fn test_parser_bool() {
         parser().parse("!false"),
         Ok(Expression::Unary(
             UnaryOp::Not,
-            Box::new(Expression::Atom(Atom::Bool(false)))
+            Box::new(Expression::Atom(Atom::Bool(false))),
         ))
     );
     assert_eq!(
         parser().parse("!true"),
         Ok(Expression::Unary(
             UnaryOp::Not,
-            Box::new(Expression::Atom(Atom::Bool(true)))
+            Box::new(Expression::Atom(Atom::Bool(true))),
         ))
     );
 }
@@ -520,7 +548,7 @@ fn test_parser_binary_bool_expressions() {
         Ok(Expression::Relation(
             Box::new(Expression::Atom(Atom::Bool(true))),
             RelationOp::Equals,
-            Box::new(Expression::Atom(Atom::Bool(true)))
+            Box::new(Expression::Atom(Atom::Bool(true))),
         ))
     );
 }
@@ -574,35 +602,35 @@ fn test_parser_negative_numbers() {
         parser().parse("-1"),
         Ok(Expression::Unary(
             UnaryOp::Neg,
-            Box::new(Expression::Atom(Atom::Int(1)))
+            Box::new(Expression::Atom(Atom::Int(1))),
         ))
     );
     assert_eq!(
         parser().parse("-1u"),
         Ok(Expression::Unary(
             UnaryOp::Neg,
-            Box::new(Expression::Atom(Atom::UInt(1)))
+            Box::new(Expression::Atom(Atom::UInt(1))),
         ))
     );
     assert_eq!(
         parser().parse("-1e3"),
         Ok(Expression::Unary(
             UnaryOp::Neg,
-            Box::new(Expression::Atom(Atom::Float(1000.0)))
+            Box::new(Expression::Atom(Atom::Float(1000.0))),
         ))
     );
     assert_eq!(
         parser().parse("-1e-3"),
         Ok(Expression::Unary(
             UnaryOp::Neg,
-            Box::new(Expression::Atom(Atom::Float(0.001)))
+            Box::new(Expression::Atom(Atom::Float(0.001))),
         ))
     );
     assert_eq!(
         parser().parse("-1.4e-3"),
         Ok(Expression::Unary(
             UnaryOp::Neg,
-            Box::new(Expression::Atom(Atom::Float(0.0014)))
+            Box::new(Expression::Atom(Atom::Float(0.0014))),
         ))
     );
 }
@@ -613,7 +641,7 @@ fn test_parser_delimited_expressions() {
         parser().parse("(-((1)))"),
         Ok(Expression::Unary(
             UnaryOp::Neg,
-            Box::new(Expression::Atom(Atom::Int(1)))
+            Box::new(Expression::Atom(Atom::Int(1))),
         ))
     );
 }
@@ -625,7 +653,7 @@ fn test_parser_binary_product_expressions() {
         Ok(Expression::Arithmetic(
             Box::new(Expression::Atom(Atom::Int(2))),
             ArithmeticOp::Multiply,
-            Box::new(Expression::Atom(Atom::Int(3)))
+            Box::new(Expression::Atom(Atom::Int(3))),
         ))
     );
     assert_eq!(
@@ -635,8 +663,8 @@ fn test_parser_binary_product_expressions() {
             ArithmeticOp::Multiply,
             Box::new(Expression::Unary(
                 UnaryOp::Neg,
-                Box::new(Expression::Atom(Atom::Int(3)))
-            ))
+                Box::new(Expression::Atom(Atom::Int(3))),
+            )),
         ))
     );
 
@@ -647,8 +675,8 @@ fn test_parser_binary_product_expressions() {
             ArithmeticOp::Divide,
             Box::new(Expression::Unary(
                 UnaryOp::Neg,
-                Box::new(Expression::Atom(Atom::Int(3)))
-            ))
+                Box::new(Expression::Atom(Atom::Int(3))),
+            )),
         ))
     );
 }
@@ -660,7 +688,7 @@ fn test_parser_sum_expressions() {
         Ok(Expression::Arithmetic(
             Box::new(Expression::Atom(Atom::Int(2))),
             ArithmeticOp::Add,
-            Box::new(Expression::Atom(Atom::Int(3)))
+            Box::new(Expression::Atom(Atom::Int(3))),
         ))
     );
     assert_eq!(
@@ -670,8 +698,8 @@ fn test_parser_sum_expressions() {
             ArithmeticOp::Subtract,
             Box::new(Expression::Unary(
                 UnaryOp::Neg,
-                Box::new(Expression::Atom(Atom::Int(3)))
-            ))
+                Box::new(Expression::Atom(Atom::Int(3))),
+            )),
         ))
     );
 }
