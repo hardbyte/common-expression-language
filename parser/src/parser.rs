@@ -390,6 +390,7 @@ pub fn parser() -> impl Parser<char, Expression, Error = Simple<char>> {
             .labelled("map");
 
         let primary = choice((
+            literal,
             just('.').or_not().ignore_then(
                 choice((
                     //attribute_access,
@@ -403,52 +404,46 @@ pub fn parser() -> impl Parser<char, Expression, Error = Simple<char>> {
             list,
             map,
             // TODO field inits here
-            literal,
         ))
         .labelled("primary")
         .boxed();
 
-        let member = recursive(|member| {
+        let member = recursive(move |member| {
             let member_attribute_access = member
                 .clone()
                 .then(just('.').ignore_then(ident.clone()))
-                .to(Expression::Atom(Atom::Null));
+                .map(
+                    |(lhs_expression, ident_expression)| match ident_expression {
+                        Expression::Ident(name) => Expression::Member(
+                            Box::new(lhs_expression),
+                            Member::Attribute(name.to_string()),
+                        ),
+                        _ => panic!("Expected identifier after '.'"),
+                    },
+                )
+                .labelled("member attribute access");
 
-            // .map(|(lhs_expression, ident_expression)|
-            //     match ident_expression {
-            //         Expression::Ident(name) => {
-            //             Expression::Member(Box::new(lhs_expression), Member::Attribute(name.to_string()))
-            //         },
-            //         _ => panic!("Expected identifier after '.'")
-            //     });
+            let member_index_access = member
+                .clone()
+                .then(just('[').ignore_then(expr.clone()).ignore_then(just(']')))
+                .to(Expression::Atom(Atom::Null)); // TODO replace
 
-            // let attribute_access = ident
-            //     .clone()
-            //     .then(just('.').ignore_then(ident.clone()))
-            //     .map(|(lhs, rhs)| match rhs {
-            //         Expression::Ident(v) => Expression::Member(Box::new(lhs), Member::Attribute(v)),
-            //         _ => panic!("Expected identifier after '.'"),
-            //     })
-            //     .labelled("attribute");
-
-            let function_member = just('(')
-                .ignore_then(expr_list.clone())
-                .then_ignore(just(')'))
-                .map(|args| Member::FunctionCall(args))
-                .padded()
-                .labelled("member function call");
-
-            let member_function_call = member_attribute_access.clone().then(function_member).map(
-                |(lhs_expression, function_call_expression)| {
-                    Expression::Member(Box::new(lhs_expression), function_call_expression)
-                },
-            );
+            let member_function_call = member
+                .clone()
+                .then(
+                    just('.')
+                        .ignore_then(ident.clone())
+                        .then_ignore(just('('))
+                        .then(expr_list.clone())
+                        .then(just(')')),
+                )
+                .to(Expression::Atom(Atom::Null)); // TODO replace
 
             choice((
-                // Something going wrong when I include these:
-                // member_function_call,
                 member_attribute_access,
-                primary,
+                //member_index_access,
+                member_function_call,
+                primary.clone(), // Should be the last option
             ))
             .labelled("member")
         });
@@ -464,8 +459,7 @@ pub fn parser() -> impl Parser<char, Expression, Error = Simple<char>> {
             .map(|rhs| Expression::Unary(UnaryOp::Neg, Box::new(rhs)))
             .labelled("negation");
 
-        let unary = choice((not, negation))
-            .or(member.clone())
+        let unary = choice((not, negation, member.clone()))
             .padded()
             .boxed()
             .labelled("unary");
@@ -517,6 +511,10 @@ pub fn parser() -> impl Parser<char, Expression, Error = Simple<char>> {
 
 #[test]
 fn test_parser_bool() {
+    assert_eq!(
+        boolean().parse("true"),
+        Ok(Expression::Atom(Atom::Bool(true)))
+    );
     assert_eq!(
         parser().parse("true"),
         Ok(Expression::Atom(Atom::Bool(true)))
