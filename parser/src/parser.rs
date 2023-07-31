@@ -337,8 +337,21 @@ pub fn parser() -> impl Parser<char, Expression, Error = Simple<char>> {
         .map(|_| Expression::Atom(Atom::Null))
         .labelled("null");
 
+    let literal = choice((numbers(), boolean(), str_(), null)).labelled("literal");
+
+    let attribute_access = just('.')
+        .ignore_then(ident.clone())
+        .map(|rhs| match rhs {
+            Expression::Ident(name) => Member::Attribute(name),
+            _ => panic!("Expected ident!")
+        });
+
+
+
     let expr = recursive(|expr| {
-        let literal = choice((numbers(), boolean(), str_(), null)).labelled("literal");
+
+        let expr_in_paren = expr.clone()
+            .delimited_by(just('('), just(')'));
 
         let expr_list = expr
             .clone()
@@ -347,14 +360,12 @@ pub fn parser() -> impl Parser<char, Expression, Error = Simple<char>> {
             .then_ignore(just(',').or_not())
             .collect::<Vec<_>>();
 
-        // Primary function call
-        let function_call = ident
-            .clone()
-            .then_ignore(just('('))
-            .then(expr_list.clone())
+        let function_call = just('(')
+            .ignore_then(expr_list.clone())
             .then_ignore(just(')'))
-            .map(|(lhs, args)| Expression::Member(Box::new(lhs), Member::FunctionCall(args)))
-            //.padded()
+            .map(|args|
+                Member::FunctionCall(args)
+            )
             .labelled("primary function call");
 
         // TODO this moves to member
@@ -391,16 +402,8 @@ pub fn parser() -> impl Parser<char, Expression, Error = Simple<char>> {
 
         let primary = choice((
             literal,
-            just('.').or_not().ignore_then(
-                choice((
-                    //attribute_access,
-                    function_call,
-                    ident,
-                )), //ident
-            ),
-            expr.clone()
-                .delimited_by(just('('), just(')'))
-                .labelled("parenthesized expression"),
+            ident,
+            expr_in_paren,
             list,
             map,
             // TODO field inits here
@@ -408,49 +411,29 @@ pub fn parser() -> impl Parser<char, Expression, Error = Simple<char>> {
         .labelled("primary")
         .boxed();
 
-        let member = recursive(move |member| {
-            let member_attribute_access = member
-                .clone()
-                .then(just('.').ignore_then(ident.clone()))
+        let member = recursive(|member| {
+            let member_chain = primary.clone()
+                .then(choice((
+                    attribute_access.clone(),
+                    function_call.clone(),
+                    // index access
+                    )).repeated())
                 .map(
-                    |(lhs_expression, ident_expression)| match ident_expression {
-                        Expression::Ident(name) => Expression::Member(
-                            Box::new(lhs_expression),
-                            Member::Attribute(name.to_string()),
-                        ),
-                        _ => panic!("Expected identifier after '.'"),
-                    },
+                    |(lhs_expression, members)|
+                        members.into_iter().fold(lhs_expression, |acc, member| {
+                            Expression::Member(Box::new(acc), member)
+                        })
                 )
-                .labelled("member attribute access");
+                .labelled("member");
 
-            let member_index_access = member
-                .clone()
-                .then(just('[').ignore_then(expr.clone()).ignore_then(just(']')))
-                .to(Expression::Atom(Atom::Null)); // TODO replace
+            choice((member_chain, primary.clone()))
+        }).boxed();
 
-            let member_function_call = member
-                .clone()
-                .then(
-                    just('.')
-                        .ignore_then(ident.clone())
-                        .then_ignore(just('('))
-                        .then(expr_list.clone())
-                        .then(just(')')),
-                )
-                .to(Expression::Atom(Atom::Null)); // TODO replace
-
-            choice((
-                member_attribute_access,
-                //member_index_access,
-                member_function_call,
-                primary.clone(), // Should be the last option
-            ))
-            .labelled("member")
-        });
 
         let op = |c| just::<char, _, Simple<char>>(c).padded();
 
         let not = op('!')
+            // could be repeated then fold here
             .ignore_then(member.clone())
             .map(|rhs| Expression::Unary(UnaryOp::Not, Box::new(rhs)));
 
@@ -506,7 +489,10 @@ pub fn parser() -> impl Parser<char, Expression, Error = Simple<char>> {
         relation
     });
 
-    expr.then_ignore(end())
+    expr
+        .clone()
+        .padded()
+        .labelled("expression")
 }
 
 #[test]

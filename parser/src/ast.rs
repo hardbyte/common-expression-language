@@ -58,6 +58,9 @@ pub enum Expression {
     Arithmetic(Box<Expression>, ArithmeticOp, Box<Expression>),
     Relation(Box<Expression>, RelationOp, Box<Expression>),
 
+    Or(Box<Expression>, Box<Expression>),
+    And(Box<Expression>, Box<Expression>),
+
     List(Vec<Expression>),
 
     // Associative arrays with int, uint, bool, or string keys
