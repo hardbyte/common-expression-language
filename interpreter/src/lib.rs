@@ -1,3 +1,4 @@
+use crate::utils::usize_from_cel_number;
 use cel_parser::ast::{ArithmeticOp, Expression, Member, RelationOp, UnaryOp};
 use serde_json;
 use serde_json::{Number, Value};
@@ -8,6 +9,7 @@ use types::{CelFunction, CelMap, CelMapKey, CelType, NumericCelType};
 // TODO should this really be public?
 mod strings;
 pub mod types;
+mod utils;
 
 pub fn eval<'a>(
     expr: &'a Expression,
@@ -188,46 +190,62 @@ pub fn eval<'a>(
                 map: Rc::new(output),
             }))
         }
-        Expression::Member(lhs, Member::Index(index_expressions)) => {
+        Expression::Member(lhs, Member::Index(index_expression)) => {
             println!("Evaluating a member[index]");
             // What can we assert about the LHS?
             let evaluated_lhs = eval(lhs, vars)?;
             match evaluated_lhs {
                 CelType::String(s) => {
                     let str = s.as_str();
-                    // If the LHS is a string, then the index elements must evaluate to integers
-                    let evaluated_indexes: Result<Vec<CelType>, _> = index_expressions
-                        .iter()
-                        .map(|index_expr| eval(index_expr, vars))
-                        .collect();
-
-                    let indexes = evaluated_indexes?;
-
-                    match indexes.as_slice() {
-                        // Match a single index
-                        [CelType::NumericCelType(cel_index)] => {
-                            let index = strings::str_index_from_cel_number(cel_index, s.len())?;
+                    // If the LHS is a string, then the index element must evaluate to integers
+                    let index: Result<CelType, _> = eval(index_expression, vars);
+                    match index {
+                        // Match a single numerical index
+                        Ok(CelType::NumericCelType(cel_index)) => {
+                            let index = strings::str_index_from_cel_number(&cel_index, s.len())?;
 
                             Ok(CelType::String(Rc::new(str[index..index + 1].to_string())))
                         }
-                        // Match a pair of indexes
-                        [CelType::NumericCelType(start_index), CelType::NumericCelType(end_index)] =>
-                        {
-                            // String slice "hello"[1,3] -> "el"
-                            let str_len = s.len();
-                            let start = strings::str_index_from_cel_number(start_index, str_len)?;
-                            let end = strings::str_index_from_cel_number(end_index, str_len)?;
-                            Ok(CelType::String(Rc::new(str[start..end].to_string())))
+                        Ok(invalid_type) => {
+                            Err(format!("Index must be an integer not {:?}", invalid_type))
                         }
-                        _ => Err(format!("Index must be an integer")),
+                        Err(e) => Err(format!(
+                            "Runtime error in evaluating index expression.\n{:?}",
+                            e
+                        )),
                     }
                 }
                 CelType::Map(m) => {
-                    // First get a MapKey variant from the (first) index expression
-                    let first_index_expression = eval(&index_expressions[0], vars)?;
-
-                    let map_key = CelMapKey::from(first_index_expression);
+                    let evaluated_index_expression = eval(index_expression, vars)?;
+                    // Get a MapKey variant from the index expression
+                    let map_key = CelMapKey::from(evaluated_index_expression);
                     Ok(m.map.get(&map_key).unwrap().clone())
+                }
+                CelType::List(l) => {
+                    let index = eval(index_expression, vars);
+                    match index {
+                        // Match a numerical index, otherwise produce an error
+                        Ok(CelType::NumericCelType(cel_index)) => {
+                            let usize_res = usize_from_cel_number(&cel_index);
+                            let e = Err(format!("Index out of bounds"));
+                            match usize_res {
+                                // // A real implementation wouldn't just create a copy here!
+                                Ok(i) if (i >= 0) && (i < l.len()) => Ok(l.get(i).unwrap().clone()),
+                                Ok(i) => e,
+                                Err(index_err) => Err(index_err),
+                            }
+                            // let value = l.get(index).unwrap();
+
+                            // Ok(value.clone())
+                        }
+                        Ok(invalid_type) => {
+                            Err(format!("Index must be an integer not {:?}", invalid_type))
+                        }
+                        Err(e) => Err(format!(
+                            "Runtime error in evaluating index expression.\n{:?}",
+                            e
+                        )),
+                    }
                 }
                 _ => Err(format!(
                     "Unhandled member operation for {:?}",

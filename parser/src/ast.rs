@@ -43,7 +43,7 @@ pub enum Member {
     // a.b, a[b, c...], a(b, c, ...)
     Attribute(String),
     FunctionCall(Vec<Expression>),
-    Index(Vec<Expression>),
+    Index(Box<Expression>),
 }
 
 #[derive(Clone, Debug, PartialEq)]

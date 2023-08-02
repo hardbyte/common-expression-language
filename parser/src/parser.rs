@@ -358,17 +358,13 @@ pub fn parser() -> impl Parser<char, Expression, Error = Simple<char>> {
             .ignore_then(expr_list.clone())
             .then_ignore(just(')'))
             .map(|args: Vec<Expression>| Member::FunctionCall(args))
-            .labelled("primary function call");
+            .labelled("function call");
 
-        // TODO this moves to member
-        // let index = expr_list
-        //     .clone()
-        //     .delimited_by(just('['), just(']'))
-        //     .labelled("index");
-        // let index_access = ident
-        //     .then(index.repeated().at_least(1))
-        //     .foldl(|lhs, rhs| Expression::Member(Box::new(lhs), Member::Index(rhs)))
-        //     .labelled("index access");
+        let index_access = just('[')
+            .ignore_then(expr.clone())
+            .then_ignore(just(']'))
+            .map(|arg: Expression| Member::Index(Box::new(arg)))
+            .labelled("index");
 
         let list = expr_list
             .clone()
@@ -410,7 +406,7 @@ pub fn parser() -> impl Parser<char, Expression, Error = Simple<char>> {
                     choice((
                         attribute_access.clone(),
                         function_call.clone(),
-                        // index access
+                        index_access.clone(),
                     ))
                     .repeated(),
                 )
