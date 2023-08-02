@@ -262,9 +262,11 @@ pub fn parser() -> impl Parser<char, Expression, Error = Simple<char>> {
         let op = |c| just::<char, _, Simple<char>>(c).padded();
 
         let not = op('!')
-            // could be repeated then fold here
-            .ignore_then(member.clone())
-            .map(|rhs| Expression::Unary(UnaryOp::Not, Box::new(rhs)));
+            .repeated()
+            .at_least(1)
+            .then(member.clone())
+            .foldr(|_op, rhs: Expression| Expression::Unary(UnaryOp::Not, Box::new(rhs)))
+            .labelled("not");
 
         let negation = op('-')
             .repeated()
@@ -345,6 +347,10 @@ mod tests {
             parser().parse("false"),
             Ok(Expression::Atom(Atom::Bool(false)))
         );
+    }
+
+    #[test]
+    fn test_parser_bool_unary_ops() {
         assert_eq!(
             parser().parse("!false"),
             Ok(Expression::Unary(
@@ -357,6 +363,20 @@ mod tests {
             Ok(Expression::Unary(
                 UnaryOp::Not,
                 Box::new(Expression::Atom(Atom::Bool(true))),
+            ))
+        );
+    }
+
+    #[test]
+    fn test_parser_bool_unary_ops_repeated() {
+        assert_eq!(
+            parser().parse("!!true"),
+            Ok(Expression::Unary(
+                UnaryOp::Not,
+                Box::new(Expression::Unary(
+                    UnaryOp::Not,
+                    Box::new(Expression::Atom(Atom::Bool(true))),
+                ))
             ))
         );
     }
