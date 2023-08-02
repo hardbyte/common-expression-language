@@ -48,6 +48,14 @@ pub enum Member {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Expression {
+    Arithmetic(Box<Expression>, ArithmeticOp, Box<Expression>),
+    Relation(Box<Expression>, RelationOp, Box<Expression>),
+
+    Ternary(Box<Expression>, Box<Expression>, Box<Expression>),
+
+    Or(Box<Expression>, Box<Expression>),
+    And(Box<Expression>, Box<Expression>),
+
     Atom(Atom),
 
     Ident(String),
@@ -55,12 +63,6 @@ pub enum Expression {
     Member(Box<Expression>, Member),
 
     Unary(UnaryOp, Box<Expression>),
-
-    Arithmetic(Box<Expression>, ArithmeticOp, Box<Expression>),
-    Relation(Box<Expression>, RelationOp, Box<Expression>),
-
-    Or(Box<Expression>, Box<Expression>),
-    And(Box<Expression>, Box<Expression>),
 
     List(Vec<Expression>),
 

@@ -96,6 +96,11 @@ pub fn eval<'a>(
                         "Unsupported operation 'in' between numerical types"
                     )),
                 },
+                (CelType::List(a), CelType::List(b)) => match op {
+                    RelationOp::Equals => Ok(CelType::Bool(a == b)),
+                    RelationOp::NotEquals => Ok(CelType::Bool(a != b)),
+                    _ => Err(format!("Unsupported list operation {:?}", op)),
+                },
                 (a, CelType::List(b)) => match op {
                     RelationOp::In => {
                         // Is a in list b
@@ -116,11 +121,7 @@ pub fn eval<'a>(
                         op, a, b
                     )),
                 },
-                (CelType::List(a), CelType::List(b)) => match op {
-                    RelationOp::Equals => Ok(CelType::Bool(a == b)),
-                    RelationOp::NotEquals => Ok(CelType::Bool(a != b)),
-                    _ => Err(format!("Unsupported list operation {:?}", op)),
-                },
+
                 (_, _) => Err(format!(
                     "Unsupported relation between {:?} and {:?}",
                     lhs, rhs
@@ -230,8 +231,8 @@ pub fn eval<'a>(
                             let e = Err(format!("Index out of bounds"));
                             match usize_res {
                                 // // A real implementation wouldn't just create a copy here!
-                                Ok(i) if (i >= 0) && (i < l.len()) => Ok(l.get(i).unwrap().clone()),
-                                Ok(i) => e,
+                                Ok(i) if (i < l.len()) => Ok(l.get(i).unwrap().clone()),
+                                Ok(_) => e,
                                 Err(index_err) => Err(index_err),
                             }
                             // let value = l.get(index).unwrap();
@@ -325,5 +326,119 @@ fn serde_json_number_to_numeric_cel_type(n: Number) -> NumericCelType {
         NumericCelType::Float(n.as_f64().unwrap())
     } else {
         panic!("Unexpected number type")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use cel_parser::parse_cel_expression;
+
+    use super::*;
+
+    #[test]
+    fn test_evaluate_boolean_expression() {
+        let result = evaluate_cel_expression("!true");
+
+        assert_eq!(
+            result,
+            CelType::Bool(false),
+            "Expected false, got {:?}",
+            result
+        );
+
+        let res_str = format!("{:?}", result);
+        assert_eq!(res_str, "Bool(false)")
+    }
+
+    #[test]
+    fn test_evaluate_list_expression() {
+        let result = evaluate_cel_expression("size([0,1,2,3,'hello'][4])");
+
+        assert_eq!(result, CelType::NumericCelType(NumericCelType::UInt(5)),);
+    }
+
+    #[test]
+    fn test_evaluate_map_expression() {
+        let result = evaluate_cel_expression("{'a': 1, 'b': 2, 'c': 3}['b']");
+
+        assert_eq!(result, CelType::NumericCelType(NumericCelType::Int(2)),);
+    }
+
+    #[test]
+    fn test_evaluate_binary_expressions_ints() {
+        assert_eq!(evaluate_cel_expression("5 > 3"), CelType::Bool(true));
+        assert_eq!(evaluate_cel_expression("5 >= 3"), CelType::Bool(true));
+        assert_eq!(evaluate_cel_expression("5 < 3"), CelType::Bool(false));
+        assert_eq!(evaluate_cel_expression("5 <= 3"), CelType::Bool(false));
+        assert_eq!(evaluate_cel_expression("5 == 3"), CelType::Bool(false));
+        assert_eq!(evaluate_cel_expression("5 == 5"), CelType::Bool(true));
+    }
+
+    #[test]
+    fn test_evaluate_basic_math() {
+        assert_eq!(evaluate_cel_expression("5 + 3 == 8"), CelType::Bool(true));
+        assert_eq!(
+            evaluate_cel_expression("1.0 / 2.0 == 0.5"),
+            CelType::Bool(true)
+        );
+    }
+
+    #[test]
+    fn test_negatives_ints() {
+        assert_eq!(
+            evaluate_cel_expression("-1"),
+            CelType::NumericCelType(NumericCelType::Int(-1))
+        );
+        assert_eq!(
+            evaluate_cel_expression("--1"),
+            CelType::NumericCelType(NumericCelType::Int(1))
+        );
+        assert_eq!(
+            evaluate_cel_expression("---1"),
+            CelType::NumericCelType(NumericCelType::Int(-1))
+        );
+        assert_eq!(
+            evaluate_cel_expression("-(--1)"),
+            CelType::NumericCelType(NumericCelType::Int(-1))
+        );
+        assert_eq!(
+            evaluate_cel_expression("---(1)"),
+            CelType::NumericCelType(NumericCelType::Int(-1))
+        );
+    }
+
+    #[test]
+    fn test_negatives_uints_convert() {
+        assert_eq!(
+            evaluate_cel_expression("-1u"),
+            CelType::NumericCelType(NumericCelType::Int(-1))
+        );
+        assert_eq!(
+            evaluate_cel_expression("--1u"),
+            CelType::NumericCelType(NumericCelType::Int(1))
+        );
+    }
+
+    #[test]
+    fn test_evaluate_list_contains_int() {
+        assert_eq!(evaluate_cel_expression("1 in []"), CelType::Bool(false));
+        assert_eq!(evaluate_cel_expression("1 in [1]"), CelType::Bool(true));
+        assert_eq!(evaluate_cel_expression("1 in [2]"), CelType::Bool(false));
+    }
+
+    #[test]
+    fn test_evaluate_size_string() {
+        assert_eq!(
+            evaluate_cel_expression("size('hello') == 5u"),
+            CelType::Bool(true)
+        );
+    }
+
+    fn evaluate_cel_expression(s: &str) -> CelType {
+        let program_src = String::from(s);
+        let default_vars = &mut Vec::new();
+        let program = parse_cel_expression(program_src).unwrap();
+        let result = eval(&program, default_vars).unwrap();
+        result
     }
 }
