@@ -357,7 +357,7 @@ pub fn parser() -> impl Parser<char, Expression, Error = Simple<char>> {
         let function_call = just('(')
             .ignore_then(expr_list.clone())
             .then_ignore(just(')'))
-            .map(|args| Member::FunctionCall(args))
+            .map(|args: Vec<Expression>| Member::FunctionCall(args))
             .labelled("primary function call");
 
         // TODO this moves to member
@@ -374,7 +374,7 @@ pub fn parser() -> impl Parser<char, Expression, Error = Simple<char>> {
             .clone()
             // Ignore trailing comma
             .delimited_by(just('['), just(']'))
-            .map(|items| Expression::List(items))
+            .map(|items: Vec<Expression>| Expression::List(items))
             .labelled("list");
 
         let map_item = expr
@@ -472,7 +472,8 @@ pub fn parser() -> impl Parser<char, Expression, Error = Simple<char>> {
             .or(just(">=").to(RelationOp::GreaterThanOrEqual))
             .or(just("<=").to(RelationOp::LessThanOrEqual))
             .or(just('>').to(RelationOp::GreaterThan))
-            .or(just('<').to(RelationOp::LessThan));
+            .or(just('<').to(RelationOp::LessThan))
+            .or(just("in").to(RelationOp::In));
 
         let relation = addition
             .clone()

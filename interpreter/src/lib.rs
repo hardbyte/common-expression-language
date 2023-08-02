@@ -90,6 +90,29 @@ pub fn eval<'a>(
                     RelationOp::LessThanOrEqual => Ok(CelType::Bool(a <= b)),
                     RelationOp::GreaterThan => Ok(CelType::Bool(a > b)),
                     RelationOp::GreaterThanOrEqual => Ok(CelType::Bool(a >= b)),
+                    RelationOp::In => Err(format!(
+                        "Unsupported operation 'in' between numerical types"
+                    )),
+                },
+                (a, CelType::List(b)) => match op {
+                    RelationOp::In => {
+                        // Is a in list b
+                        Ok(CelType::Bool(b.contains(&a)))
+                    }
+                    _ => Err(format!(
+                        "Unsupported operation {:?} between {:?} and {:?}",
+                        op, a, b
+                    )),
+                },
+                (a, CelType::Map(b)) => match op {
+                    RelationOp::In => {
+                        // Is a in list b. Note the `into()` converts a to a CelMapKey
+                        Ok(CelType::Bool(b.map.contains_key(&a.into())))
+                    }
+                    _ => Err(format!(
+                        "Unsupported operation {:?} between {:?} and {:?}",
+                        op, a, b
+                    )),
                 },
                 (CelType::List(a), CelType::List(b)) => match op {
                     RelationOp::Equals => Ok(CelType::Bool(a == b)),

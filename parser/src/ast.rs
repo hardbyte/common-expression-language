@@ -35,6 +35,7 @@ pub enum RelationOp {
     GreaterThanOrEqual,
     LessThan,
     LessThanOrEqual,
+    In,
 }
 
 #[derive(Clone, Debug, PartialEq)]
