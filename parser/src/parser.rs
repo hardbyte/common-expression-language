@@ -237,27 +237,24 @@ pub fn parser() -> impl Parser<char, Expression, Error = Simple<char>> {
         .labelled("primary")
         .boxed();
 
-        let member = recursive(|member| {
-            let member_chain = primary
-                .clone()
-                .then(
-                    choice((
-                        attribute_access.clone(),
-                        function_call.clone(),
-                        index_access.clone(),
-                    ))
-                    .repeated(),
-                )
-                .map(|(lhs_expression, members)| {
-                    members.into_iter().fold(lhs_expression, |acc, member| {
-                        Expression::Member(Box::new(acc), member)
-                    })
+        let member_chain = primary
+            .clone()
+            .then(
+                choice((
+                    attribute_access.clone(),
+                    function_call.clone(),
+                    index_access.clone(),
+                ))
+                .repeated(),
+            )
+            .map(|(lhs_expression, members)| {
+                members.into_iter().fold(lhs_expression, |acc, member| {
+                    Expression::Member(Box::new(acc), member)
                 })
-                .labelled("member");
+            })
+            .labelled("member");
 
-            choice((member_chain, primary.clone()))
-        })
-        .boxed();
+        let member = choice((member_chain, primary.clone()));
 
         let op = |c| just::<char, _, Simple<char>>(c).padded();
 
