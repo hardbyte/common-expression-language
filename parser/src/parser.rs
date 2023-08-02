@@ -10,20 +10,6 @@ fn boolean() -> impl Parser<char, Expression, Error = Simple<char>> {
         .map(|b| Expression::Atom(Atom::Bool(b)))
 }
 
-#[test]
-fn test_boolean_parser() {
-    assert_eq!(
-        boolean().parse("true"),
-        Ok(Expression::Atom(Atom::Bool(true)))
-    );
-    assert_eq!(
-        boolean().parse("false"),
-        Ok(Expression::Atom(Atom::Bool(false)))
-    );
-    assert!(boolean().parse("tru").is_err());
-    assert!(boolean().parse("False").is_err());
-}
-
 /// Parses floating point and integer numbers and returns them as [`Expr::Atom(Atom::Double(...))`]
 /// or [`Expr::Atom(Atom::Int(...))`] types. The following formats are supported:
 /// - `1`
@@ -71,43 +57,6 @@ fn numbers() -> impl Parser<char, Expression, Error = Simple<char>> {
     choice((unsigned_integer, float_or_int))
         .padded()
         .labelled("number")
-}
-
-#[test]
-fn test_number_parser_unsigned_numbers() {
-    //let unsigned_integer = text::int::<char, Simple<char>>(10).then_ignore(just('u')).map(|s: String| Expr::Atom(Atom::UInt(s.as_str().parse().unwrap())));
-    //assert_eq!(unsigned_integer.parse("1u"), Ok(Expr::Atom(Atom::UInt(1))));
-    assert_eq!(numbers().parse("1u"), Ok(Expression::Atom(Atom::UInt(1))));
-    assert_eq!(numbers().parse("1up"), Ok(Expression::Atom(Atom::UInt(1))));
-}
-
-#[test]
-fn test_number_parser_int() {
-    assert_eq!(numbers().parse("1"), Ok(Expression::Atom(Atom::Int(1))));
-
-    // Debatable if this should be allowed. Ref CEL Spec:
-    // https://github.com/google/cel-spec/blob/master/doc/langdef.md#numeric-values
-    // "negative integers are produced by the unary negation operator"
-    assert_eq!(
-        numbers().parse("-100"),
-        Ok(Expression::Atom(Atom::Int(-100)))
-    );
-}
-
-#[test]
-fn test_number_parser_double() {
-    assert_eq!(
-        numbers().parse("1e3"),
-        Ok(Expression::Atom(Atom::Float(1000.0)))
-    );
-    assert_eq!(
-        numbers().parse("-1e-3"),
-        Ok(Expression::Atom(Atom::Float(-0.001)))
-    );
-    assert_eq!(
-        numbers().parse("-1.4e-3"),
-        Ok(Expression::Atom(Atom::Float(-0.0014)))
-    );
 }
 
 fn str_inner(
@@ -215,115 +164,6 @@ fn str_() -> impl Parser<char, Expression, Error = Simple<char>> {
         double_quoted_string,
     ))
     .map(|s| Expression::Atom(Atom::String(s.into())))
-}
-
-#[test]
-fn test_str_inner_parser() {
-    // Taking the idea from
-    // REF: https://github.com/PRQL/prql/blob/main/prql-compiler/src/parser/lexer.rs#L295
-
-    let triple_single_quoted_escaped_string =
-        str_inner("'''", true).labelled("triple ' quoted escaped string");
-
-    assert_eq!(
-        triple_single_quoted_escaped_string.parse(r"''''''"),
-        Ok(String::from("").into())
-    );
-    assert_eq!(
-        triple_single_quoted_escaped_string.parse(r"'''hello'''"),
-        Ok(String::from("hello").into())
-    );
-    // Check triple quoted strings interpret escape sequences (note this is a rust raw string, not a CEL raw string)
-    assert_eq!(
-        triple_single_quoted_escaped_string.parse(r"'''\n'''"),
-        Ok(String::from("\n").into())
-    );
-    assert_eq!(
-        triple_single_quoted_escaped_string.parse(r"'''x''x'''"),
-        Ok(String::from("x''x").into())
-    );
-    assert_eq!(
-        triple_single_quoted_escaped_string.parse(r"''' '''"),
-        Ok(String::from(" ").into())
-    );
-    assert_eq!(
-        triple_single_quoted_escaped_string.parse(r"'''\xFF'''"),
-        Ok(String::from("ÿ").into())
-    );
-    assert_eq!(
-        triple_single_quoted_escaped_string.parse(r"'''\377'''"),
-        Ok(String::from("ÿ").into())
-    );
-}
-
-#[test]
-fn test_str_parser() {
-    assert_eq!(
-        str_().parse("'Hello!'"),
-        Ok(Expression::Atom(Atom::String(
-            String::from("Hello!").into()
-        )))
-    );
-    assert_eq!(
-        str_().parse("\"Hello!\""),
-        Ok(Expression::Atom(Atom::String(
-            String::from("Hello!").into()
-        )))
-    );
-    assert_eq!(
-        str_().parse("'\n'"),
-        Ok(Expression::Atom(Atom::String(String::from("\n").into())))
-    );
-    assert_eq!(
-        str_().parse(r"'\n'"),
-        Ok(Expression::Atom(Atom::String(String::from("\n").into())))
-    );
-
-    assert_eq!(
-        str_().parse(r"'''hello'''"),
-        Ok(Expression::Atom(Atom::String(String::from("hello").into())))
-    );
-    // Check triple quoted strings interpret escape sequences (note this is a rust raw string, not a CEL raw string)
-    assert_eq!(
-        str_().parse(r"'''\n'''"),
-        Ok(Expression::Atom(Atom::String(String::from("\n").into())))
-    );
-}
-
-#[test]
-fn test_raw_str_parser() {
-    assert_eq!(
-        str_().parse(r"r'\n'"),
-        Ok(Expression::Atom(Atom::String(String::from("\\n").into())))
-    );
-    assert_eq!(
-        str_().parse(r"R'\n'"),
-        Ok(Expression::Atom(Atom::String(String::from("\\n").into())))
-    );
-    assert_eq!(
-        str_().parse("r'1'"),
-        Ok(Expression::Atom(Atom::String(String::from("1").into())))
-    );
-    assert_eq!(
-        str_().parse("r\"Hello!\""),
-        Ok(Expression::Atom(Atom::String(
-            String::from("Hello!").into()
-        )))
-    );
-    assert_eq!(
-        str_().parse("R\"Hello!\""),
-        Ok(Expression::Atom(Atom::String(
-            String::from("Hello!").into()
-        )))
-    );
-    assert_eq!(
-        str_().parse(r"r'''hello'''"),
-        Ok(Expression::Atom(Atom::String(String::from("hello").into())))
-    );
-    assert_eq!(
-        str_().parse(r"r'''\n'''"),
-        Ok(Expression::Atom(Atom::String(String::from("\\n").into())))
-    );
 }
 
 pub fn parser() -> impl Parser<char, Expression, Error = Simple<char>> {
@@ -484,195 +324,361 @@ pub fn parser() -> impl Parser<char, Expression, Error = Simple<char>> {
     expr.clone().padded().labelled("expression")
 }
 
-#[test]
-fn test_parser_bool() {
-    assert_eq!(
-        boolean().parse("true"),
-        Ok(Expression::Atom(Atom::Bool(true)))
-    );
-    assert_eq!(
-        parser().parse("true"),
-        Ok(Expression::Atom(Atom::Bool(true)))
-    );
-    assert_eq!(
-        parser().parse("false"),
-        Ok(Expression::Atom(Atom::Bool(false)))
-    );
-    assert_eq!(
-        parser().parse("!false"),
-        Ok(Expression::Unary(
-            UnaryOp::Not,
-            Box::new(Expression::Atom(Atom::Bool(false))),
-        ))
-    );
-    assert_eq!(
-        parser().parse("!true"),
-        Ok(Expression::Unary(
-            UnaryOp::Not,
-            Box::new(Expression::Atom(Atom::Bool(true))),
-        ))
-    );
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-#[test]
-fn test_parser_binary_bool_expressions() {
-    assert_eq!(
-        parser().parse("true == true"),
-        Ok(Expression::Relation(
-            Box::new(Expression::Atom(Atom::Bool(true))),
-            RelationOp::Equals,
-            Box::new(Expression::Atom(Atom::Bool(true))),
-        ))
-    );
-}
+    #[test]
+    fn test_parser_bool() {
+        assert_eq!(
+            boolean().parse("true"),
+            Ok(Expression::Atom(Atom::Bool(true)))
+        );
+        assert_eq!(
+            parser().parse("true"),
+            Ok(Expression::Atom(Atom::Bool(true)))
+        );
+        assert_eq!(
+            parser().parse("false"),
+            Ok(Expression::Atom(Atom::Bool(false)))
+        );
+        assert_eq!(
+            parser().parse("!false"),
+            Ok(Expression::Unary(
+                UnaryOp::Not,
+                Box::new(Expression::Atom(Atom::Bool(false))),
+            ))
+        );
+        assert_eq!(
+            parser().parse("!true"),
+            Ok(Expression::Unary(
+                UnaryOp::Not,
+                Box::new(Expression::Atom(Atom::Bool(true))),
+            ))
+        );
+    }
 
-#[test]
-fn test_parser_str() {
-    assert_eq!(
-        parser().parse("'hi'"),
-        Ok(Expression::Atom(Atom::String(String::from("hi").into())))
-    );
-    assert_eq!(
-        parser().parse("'true'"),
-        Ok(Expression::Atom(Atom::String(String::from("true").into())))
-    );
+    #[test]
+    fn test_boolean_parser() {
+        assert_eq!(
+            boolean().parse("true"),
+            Ok(Expression::Atom(Atom::Bool(true)))
+        );
+        assert_eq!(
+            boolean().parse("false"),
+            Ok(Expression::Atom(Atom::Bool(false)))
+        );
+        assert!(boolean().parse("1").is_err());
+        assert!(boolean().parse("tru").is_err());
+        assert!(boolean().parse("False").is_err());
+    }
 
-    assert_eq!(
-        parser().parse("'''true\n'''"),
-        Ok(Expression::Atom(Atom::String(
-            String::from("true\n").into()
-        )))
-    );
-    assert_eq!(
-        parser().parse(r##""""He said "Hi I'm Brian".""""##),
-        Ok(Expression::Atom(Atom::String(
-            String::from("He said \"Hi I'm Brian\".").into()
-        )))
-    );
-}
+    #[test]
+    fn test_parser_binary_bool_expressions() {
+        assert_eq!(
+            parser().parse("true == true"),
+            Ok(Expression::Relation(
+                Box::new(Expression::Atom(Atom::Bool(true))),
+                RelationOp::Equals,
+                Box::new(Expression::Atom(Atom::Bool(true))),
+            ))
+        );
+    }
 
-#[test]
-fn test_parser_raw_strings() {
-    assert_eq!(
-        parser().parse("r'\n'"),
-        Ok(Expression::Atom(Atom::String(String::from("\n").into())))
-    );
-}
+    #[test]
+    fn test_number_parser_unsigned_numbers() {
+        //let unsigned_integer = text::int::<char, Simple<char>>(10).then_ignore(just('u')).map(|s: String| Expr::Atom(Atom::UInt(s.as_str().parse().unwrap())));
+        //assert_eq!(unsigned_integer.parse("1u"), Ok(Expr::Atom(Atom::UInt(1))));
+        assert_eq!(numbers().parse("1u"), Ok(Expression::Atom(Atom::UInt(1))));
+        assert_eq!(numbers().parse("1up"), Ok(Expression::Atom(Atom::UInt(1))));
+    }
 
-#[test]
-fn test_parser_positive_numbers() {
-    assert_eq!(parser().parse("1"), Ok(Expression::Atom(Atom::Int(1))));
-    assert_eq!(parser().parse("1u"), Ok(Expression::Atom(Atom::UInt(1))));
-    assert_eq!(
-        parser().parse("1.0"),
-        Ok(Expression::Atom(Atom::Float(1.0)))
-    );
-}
+    #[test]
+    fn test_number_parser_int() {
+        assert_eq!(numbers().parse("1"), Ok(Expression::Atom(Atom::Int(1))));
 
-#[test]
-fn test_parser_negative_numbers() {
-    assert_eq!(
-        parser().parse("-1"),
-        Ok(Expression::Unary(
-            UnaryOp::Neg,
-            Box::new(Expression::Atom(Atom::Int(1))),
-        ))
-    );
-    assert_eq!(
-        parser().parse("-1u"),
-        Ok(Expression::Unary(
-            UnaryOp::Neg,
-            Box::new(Expression::Atom(Atom::UInt(1))),
-        ))
-    );
-    assert_eq!(
-        parser().parse("-1e3"),
-        Ok(Expression::Unary(
-            UnaryOp::Neg,
-            Box::new(Expression::Atom(Atom::Float(1000.0))),
-        ))
-    );
-    assert_eq!(
-        parser().parse("-1e-3"),
-        Ok(Expression::Unary(
-            UnaryOp::Neg,
-            Box::new(Expression::Atom(Atom::Float(0.001))),
-        ))
-    );
-    assert_eq!(
-        parser().parse("-1.4e-3"),
-        Ok(Expression::Unary(
-            UnaryOp::Neg,
-            Box::new(Expression::Atom(Atom::Float(0.0014))),
-        ))
-    );
-}
+        // Debatable if this should be allowed. Ref CEL Spec:
+        // https://github.com/google/cel-spec/blob/master/doc/langdef.md#numeric-values
+        // "negative integers are produced by the unary negation operator"
+        assert_eq!(
+            numbers().parse("-100"),
+            Ok(Expression::Atom(Atom::Int(-100)))
+        );
+    }
 
-#[test]
-fn test_parser_delimited_expressions() {
-    assert_eq!(
-        parser().parse("(-((1)))"),
-        Ok(Expression::Unary(
-            UnaryOp::Neg,
-            Box::new(Expression::Atom(Atom::Int(1))),
-        ))
-    );
-}
+    #[test]
+    fn test_number_parser_double() {
+        assert_eq!(
+            numbers().parse("1e3"),
+            Ok(Expression::Atom(Atom::Float(1000.0)))
+        );
+        assert_eq!(
+            numbers().parse("-1e-3"),
+            Ok(Expression::Atom(Atom::Float(-0.001)))
+        );
+        assert_eq!(
+            numbers().parse("-1.4e-3"),
+            Ok(Expression::Atom(Atom::Float(-0.0014)))
+        );
+    }
 
-#[test]
-fn test_parser_binary_product_expressions() {
-    assert_eq!(
-        parser().parse("2 * 3"),
-        Ok(Expression::Arithmetic(
-            Box::new(Expression::Atom(Atom::Int(2))),
-            ArithmeticOp::Multiply,
-            Box::new(Expression::Atom(Atom::Int(3))),
-        ))
-    );
-    assert_eq!(
-        parser().parse("2 * -3"),
-        Ok(Expression::Arithmetic(
-            Box::new(Expression::Atom(Atom::Int(2))),
-            ArithmeticOp::Multiply,
-            Box::new(Expression::Unary(
+    #[test]
+    fn test_parser_str() {
+        assert_eq!(
+            parser().parse("'hi'"),
+            Ok(Expression::Atom(Atom::String(String::from("hi").into())))
+        );
+        assert_eq!(
+            parser().parse("'true'"),
+            Ok(Expression::Atom(Atom::String(String::from("true").into())))
+        );
+
+        assert_eq!(
+            parser().parse("'''true\n'''"),
+            Ok(Expression::Atom(Atom::String(
+                String::from("true\n").into()
+            )))
+        );
+        assert_eq!(
+            parser().parse(r##""""He said "Hi I'm Brian".""""##),
+            Ok(Expression::Atom(Atom::String(
+                String::from("He said \"Hi I'm Brian\".").into()
+            )))
+        );
+    }
+
+    #[test]
+    fn test_parser_raw_strings() {
+        assert_eq!(
+            parser().parse("r'\n'"),
+            Ok(Expression::Atom(Atom::String(String::from("\n").into())))
+        );
+    }
+
+    #[test]
+    fn test_parser_positive_numbers() {
+        assert_eq!(parser().parse("1"), Ok(Expression::Atom(Atom::Int(1))));
+        assert_eq!(parser().parse("1u"), Ok(Expression::Atom(Atom::UInt(1))));
+        assert_eq!(
+            parser().parse("1.0"),
+            Ok(Expression::Atom(Atom::Float(1.0)))
+        );
+    }
+
+    #[test]
+    fn test_parser_negative_numbers() {
+        assert_eq!(
+            parser().parse("-1"),
+            Ok(Expression::Unary(
                 UnaryOp::Neg,
-                Box::new(Expression::Atom(Atom::Int(3))),
-            )),
-        ))
-    );
-
-    assert_eq!(
-        parser().parse("2 / -3"),
-        Ok(Expression::Arithmetic(
-            Box::new(Expression::Atom(Atom::Int(2))),
-            ArithmeticOp::Divide,
-            Box::new(Expression::Unary(
+                Box::new(Expression::Atom(Atom::Int(1))),
+            ))
+        );
+        assert_eq!(
+            parser().parse("-1u"),
+            Ok(Expression::Unary(
                 UnaryOp::Neg,
-                Box::new(Expression::Atom(Atom::Int(3))),
-            )),
-        ))
-    );
-}
-
-#[test]
-fn test_parser_sum_expressions() {
-    assert_eq!(
-        parser().parse("2 + 3"),
-        Ok(Expression::Arithmetic(
-            Box::new(Expression::Atom(Atom::Int(2))),
-            ArithmeticOp::Add,
-            Box::new(Expression::Atom(Atom::Int(3))),
-        ))
-    );
-    assert_eq!(
-        parser().parse("2 - -3"),
-        Ok(Expression::Arithmetic(
-            Box::new(Expression::Atom(Atom::Int(2))),
-            ArithmeticOp::Subtract,
-            Box::new(Expression::Unary(
+                Box::new(Expression::Atom(Atom::UInt(1))),
+            ))
+        );
+        assert_eq!(
+            parser().parse("-1e3"),
+            Ok(Expression::Unary(
                 UnaryOp::Neg,
+                Box::new(Expression::Atom(Atom::Float(1000.0))),
+            ))
+        );
+        assert_eq!(
+            parser().parse("-1e-3"),
+            Ok(Expression::Unary(
+                UnaryOp::Neg,
+                Box::new(Expression::Atom(Atom::Float(0.001))),
+            ))
+        );
+        assert_eq!(
+            parser().parse("-1.4e-3"),
+            Ok(Expression::Unary(
+                UnaryOp::Neg,
+                Box::new(Expression::Atom(Atom::Float(0.0014))),
+            ))
+        );
+    }
+
+    #[test]
+    fn test_parser_delimited_expressions() {
+        assert_eq!(
+            parser().parse("(-((1)))"),
+            Ok(Expression::Unary(
+                UnaryOp::Neg,
+                Box::new(Expression::Atom(Atom::Int(1))),
+            ))
+        );
+    }
+
+    #[test]
+    fn test_parser_binary_product_expressions() {
+        assert_eq!(
+            parser().parse("2 * 3"),
+            Ok(Expression::Arithmetic(
+                Box::new(Expression::Atom(Atom::Int(2))),
+                ArithmeticOp::Multiply,
                 Box::new(Expression::Atom(Atom::Int(3))),
-            )),
-        ))
-    );
+            ))
+        );
+        assert_eq!(
+            parser().parse("2 * -3"),
+            Ok(Expression::Arithmetic(
+                Box::new(Expression::Atom(Atom::Int(2))),
+                ArithmeticOp::Multiply,
+                Box::new(Expression::Unary(
+                    UnaryOp::Neg,
+                    Box::new(Expression::Atom(Atom::Int(3))),
+                )),
+            ))
+        );
+
+        assert_eq!(
+            parser().parse("2 / -3"),
+            Ok(Expression::Arithmetic(
+                Box::new(Expression::Atom(Atom::Int(2))),
+                ArithmeticOp::Divide,
+                Box::new(Expression::Unary(
+                    UnaryOp::Neg,
+                    Box::new(Expression::Atom(Atom::Int(3))),
+                )),
+            ))
+        );
+    }
+
+    #[test]
+    fn test_parser_sum_expressions() {
+        assert_eq!(
+            parser().parse("2 + 3"),
+            Ok(Expression::Arithmetic(
+                Box::new(Expression::Atom(Atom::Int(2))),
+                ArithmeticOp::Add,
+                Box::new(Expression::Atom(Atom::Int(3))),
+            ))
+        );
+        assert_eq!(
+            parser().parse("2 - -3"),
+            Ok(Expression::Arithmetic(
+                Box::new(Expression::Atom(Atom::Int(2))),
+                ArithmeticOp::Subtract,
+                Box::new(Expression::Unary(
+                    UnaryOp::Neg,
+                    Box::new(Expression::Atom(Atom::Int(3))),
+                )),
+            ))
+        );
+    }
+
+    #[test]
+    fn test_str_inner_parser() {
+        // Taking the idea from
+        // REF: https://github.com/PRQL/prql/blob/main/prql-compiler/src/parser/lexer.rs#L295
+
+        let triple_single_quoted_escaped_string =
+            str_inner("'''", true).labelled("triple ' quoted escaped string");
+
+        assert_eq!(
+            triple_single_quoted_escaped_string.parse(r"''''''"),
+            Ok(String::from("").into())
+        );
+        assert_eq!(
+            triple_single_quoted_escaped_string.parse(r"'''hello'''"),
+            Ok(String::from("hello").into())
+        );
+        // Check triple quoted strings interpret escape sequences (note this is a rust raw string, not a CEL raw string)
+        assert_eq!(
+            triple_single_quoted_escaped_string.parse(r"'''\n'''"),
+            Ok(String::from("\n").into())
+        );
+        assert_eq!(
+            triple_single_quoted_escaped_string.parse(r"'''x''x'''"),
+            Ok(String::from("x''x").into())
+        );
+        assert_eq!(
+            triple_single_quoted_escaped_string.parse(r"''' '''"),
+            Ok(String::from(" ").into())
+        );
+        assert_eq!(
+            triple_single_quoted_escaped_string.parse(r"'''\xFF'''"),
+            Ok(String::from("ÿ").into())
+        );
+        assert_eq!(
+            triple_single_quoted_escaped_string.parse(r"'''\377'''"),
+            Ok(String::from("ÿ").into())
+        );
+    }
+
+    #[test]
+    fn test_str_parser() {
+        assert_eq!(
+            str_().parse("'Hello!'"),
+            Ok(Expression::Atom(Atom::String(
+                String::from("Hello!").into()
+            )))
+        );
+        assert_eq!(
+            str_().parse("\"Hello!\""),
+            Ok(Expression::Atom(Atom::String(
+                String::from("Hello!").into()
+            )))
+        );
+        assert_eq!(
+            str_().parse("'\n'"),
+            Ok(Expression::Atom(Atom::String(String::from("\n").into())))
+        );
+        assert_eq!(
+            str_().parse(r"'\n'"),
+            Ok(Expression::Atom(Atom::String(String::from("\n").into())))
+        );
+
+        assert_eq!(
+            str_().parse(r"'''hello'''"),
+            Ok(Expression::Atom(Atom::String(String::from("hello").into())))
+        );
+        // Check triple quoted strings interpret escape sequences (note this is a rust raw string, not a CEL raw string)
+        assert_eq!(
+            str_().parse(r"'''\n'''"),
+            Ok(Expression::Atom(Atom::String(String::from("\n").into())))
+        );
+    }
+
+    #[test]
+    fn test_raw_str_parser() {
+        assert_eq!(
+            str_().parse(r"r'\n'"),
+            Ok(Expression::Atom(Atom::String(String::from("\\n").into())))
+        );
+        assert_eq!(
+            str_().parse(r"R'\n'"),
+            Ok(Expression::Atom(Atom::String(String::from("\\n").into())))
+        );
+        assert_eq!(
+            str_().parse("r'1'"),
+            Ok(Expression::Atom(Atom::String(String::from("1").into())))
+        );
+        assert_eq!(
+            str_().parse("r\"Hello!\""),
+            Ok(Expression::Atom(Atom::String(
+                String::from("Hello!").into()
+            )))
+        );
+        assert_eq!(
+            str_().parse("R\"Hello!\""),
+            Ok(Expression::Atom(Atom::String(
+                String::from("Hello!").into()
+            )))
+        );
+        assert_eq!(
+            str_().parse(r"r'''hello'''"),
+            Ok(Expression::Atom(Atom::String(String::from("hello").into())))
+        );
+        assert_eq!(
+            str_().parse(r"r'''\n'''"),
+            Ok(Expression::Atom(Atom::String(String::from("\\n").into())))
+        );
+    }
 }
