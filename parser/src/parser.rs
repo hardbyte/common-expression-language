@@ -261,24 +261,16 @@ pub fn parser() -> impl Parser<char, Expression, Error = Simple<char>> {
 
         let op = |c| just::<char, _, Simple<char>>(c).padded();
 
-        let not = op('!')
+        let unary_op = op('!').to(UnaryOp::Not).or(op('-').to(UnaryOp::Neg));
+
+        let not_or_negation = unary_op
             .repeated()
             .at_least(1)
             .then(member.clone())
-            .foldr(|_op, rhs: Expression| Expression::Unary(UnaryOp::Not, Box::new(rhs)))
-            .labelled("not");
-
-        let negation = op('-')
-            .repeated()
-            .at_least(1)
-            .then(member.clone())
-            .foldr(|_op, rhs: Expression| Expression::Unary(UnaryOp::Neg, Box::new(rhs)))
-            .labelled("negation");
-
-        let unary = choice((not, negation, member.clone()))
-            .padded()
-            .boxed()
+            .foldr(|op, rhs: Expression| Expression::Unary(op, Box::new(rhs)))
             .labelled("unary");
+
+        let unary = choice((not_or_negation, member.clone())).padded();
 
         let product_div_op = op('*')
             .to(ArithmeticOp::Multiply)
@@ -290,8 +282,7 @@ pub fn parser() -> impl Parser<char, Expression, Error = Simple<char>> {
             .foldl(|lhs, (binary_op, rhs)| {
                 Expression::Arithmetic(Box::new(lhs), binary_op, Box::new(rhs))
             })
-            .labelled("product_or_division")
-            .boxed();
+            .labelled("product_or_division");
 
         let sum_sub_op = op('+')
             .to(ArithmeticOp::Add)
@@ -301,8 +292,7 @@ pub fn parser() -> impl Parser<char, Expression, Error = Simple<char>> {
             .clone()
             .then(sum_sub_op.then(multiplication.clone()).repeated())
             .foldl(|lhs, (op, rhs)| Expression::Arithmetic(Box::new(lhs), op, Box::new(rhs)))
-            .labelled("sub_or_sub")
-            .boxed();
+            .labelled("sub_or_sub");
 
         let relationship_op = just("==")
             .to(RelationOp::Equals)
@@ -317,8 +307,7 @@ pub fn parser() -> impl Parser<char, Expression, Error = Simple<char>> {
             .clone()
             .then(relationship_op.then(addition.clone()).repeated())
             .foldl(|lhs, (op, rhs)| Expression::Relation(Box::new(lhs), op, Box::new(rhs)))
-            .labelled("comparison")
-            .boxed();
+            .labelled("comparison");
 
         relation
     });
