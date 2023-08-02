@@ -33,9 +33,7 @@ fn numbers() -> impl Parser<char, Expression, Error = Simple<char>> {
         .chain::<char, _, _>(one_of("+-").or_not())
         .chain::<char, _, _>(digits.clone());
 
-    let float_or_int = just('-')
-        .or_not()
-        .chain::<char, _, _>(text::int::<char, Simple<char>>(10))
+    let float_or_int = text::int::<char, Simple<char>>(10)
         .chain::<char, _, _>(frac.or_not().flatten())
         .chain::<char, _, _>(exp.or_not().flatten())
         .try_map(|chars, span| {
@@ -269,8 +267,10 @@ pub fn parser() -> impl Parser<char, Expression, Error = Simple<char>> {
             .map(|rhs| Expression::Unary(UnaryOp::Not, Box::new(rhs)));
 
         let negation = op('-')
-            .ignore_then(member.clone())
-            .map(|rhs| Expression::Unary(UnaryOp::Neg, Box::new(rhs)))
+            .repeated()
+            .at_least(1)
+            .then(member.clone())
+            .foldr(|_op, rhs: Expression| Expression::Unary(UnaryOp::Neg, Box::new(rhs)))
             .labelled("negation");
 
         let unary = choice((not, negation, member.clone()))
@@ -321,7 +321,10 @@ pub fn parser() -> impl Parser<char, Expression, Error = Simple<char>> {
         relation
     });
 
-    expr.clone().padded().labelled("expression")
+    expr.clone()
+        .padded()
+        .then_ignore(end())
+        .labelled("expression")
 }
 
 #[cfg(test)]
@@ -374,6 +377,25 @@ mod tests {
     }
 
     #[test]
+    fn test_boolean_not_parser() {
+        assert_eq!(
+            parser().parse("!true"),
+            Ok(Expression::Unary(
+                UnaryOp::Not,
+                Box::new(Expression::Atom(Atom::Bool(true)))
+            ))
+        );
+        assert_eq!(
+            parser().parse("!false"),
+            Ok(Expression::Unary(
+                UnaryOp::Not,
+                Box::new(Expression::Atom(Atom::Bool(false)))
+            ))
+        );
+        assert!(boolean().parse("-true").is_err());
+    }
+
+    #[test]
     fn test_parser_binary_bool_expressions() {
         assert_eq!(
             parser().parse("true == true"),
@@ -400,10 +422,7 @@ mod tests {
         // Debatable if this should be allowed. Ref CEL Spec:
         // https://github.com/google/cel-spec/blob/master/doc/langdef.md#numeric-values
         // "negative integers are produced by the unary negation operator"
-        assert_eq!(
-            numbers().parse("-100"),
-            Ok(Expression::Atom(Atom::Int(-100)))
-        );
+        assert_eq!(numbers().parse("100"), Ok(Expression::Atom(Atom::Int(100))));
     }
 
     #[test]
@@ -413,12 +432,12 @@ mod tests {
             Ok(Expression::Atom(Atom::Float(1000.0)))
         );
         assert_eq!(
-            numbers().parse("-1e-3"),
-            Ok(Expression::Atom(Atom::Float(-0.001)))
+            numbers().parse("1e-3"),
+            Ok(Expression::Atom(Atom::Float(0.001)))
         );
         assert_eq!(
-            numbers().parse("-1.4e-3"),
-            Ok(Expression::Atom(Atom::Float(-0.0014)))
+            numbers().parse("1.4e-3"),
+            Ok(Expression::Atom(Atom::Float(0.0014)))
         );
     }
 
@@ -452,6 +471,49 @@ mod tests {
         assert_eq!(
             parser().parse("r'\n'"),
             Ok(Expression::Atom(Atom::String(String::from("\n").into())))
+        );
+    }
+
+    #[test]
+    fn test_parser_ident() {
+        assert_eq!(
+            parser().parse("a"),
+            Ok(Expression::Ident(String::from("a").into()))
+        );
+
+        assert_eq!(
+            parser().parse("hello "),
+            Ok(Expression::Ident(String::from("hello").into()))
+        );
+    }
+
+    #[test]
+    fn test_parser_ident_invalid() {
+        assert!(parser().parse("1a").is_err());
+    }
+
+    #[test]
+    fn test_parser_ident_function_call_no_args() {
+        assert_eq!(
+            parser().parse("a()"),
+            Ok(Expression::Member(
+                Box::new(Expression::Ident(String::from("a").into())),
+                Member::FunctionCall(vec![]),
+            ))
+        );
+    }
+
+    #[test]
+    fn test_parser_ident_function_call_nonempty_args() {
+        assert_eq!(
+            parser().parse("a(0,1)"),
+            Ok(Expression::Member(
+                Box::new(Expression::Ident(String::from("a").into())),
+                Member::FunctionCall(vec![
+                    Expression::Atom(Atom::Int(0)),
+                    Expression::Atom(Atom::Int(1))
+                ]),
+            ))
         );
     }
 
@@ -502,6 +564,22 @@ mod tests {
                 Box::new(Expression::Atom(Atom::Float(0.0014))),
             ))
         );
+
+        assert!(boolean().parse("!1").is_err());
+    }
+
+    #[test]
+    fn test_parser_repeated_negatives_numbers() {
+        assert_eq!(
+            parser().parse("--1"),
+            Ok(Expression::Unary(
+                UnaryOp::Neg,
+                Box::new(Expression::Unary(
+                    UnaryOp::Neg,
+                    Box::new(Expression::Atom(Atom::Int(1))),
+                ))
+            ))
+        );
     }
 
     #[test]
@@ -511,6 +589,44 @@ mod tests {
             Ok(Expression::Unary(
                 UnaryOp::Neg,
                 Box::new(Expression::Atom(Atom::Int(1))),
+            ))
+        );
+    }
+
+    #[test]
+    fn test_parser_integer_relations() {
+        assert_eq!(
+            parser().parse("2 != 3"),
+            Ok(Expression::Relation(
+                Box::new(Expression::Atom(Atom::Int(2))),
+                RelationOp::NotEquals,
+                Box::new(Expression::Atom(Atom::Int(3))),
+            ))
+        );
+        assert_eq!(
+            parser().parse("2 == 3"),
+            Ok(Expression::Relation(
+                Box::new(Expression::Atom(Atom::Int(2))),
+                RelationOp::Equals,
+                Box::new(Expression::Atom(Atom::Int(3))),
+            ))
+        );
+
+        assert_eq!(
+            parser().parse("2 < 3"),
+            Ok(Expression::Relation(
+                Box::new(Expression::Atom(Atom::Int(2))),
+                RelationOp::LessThan,
+                Box::new(Expression::Atom(Atom::Int(3))),
+            ))
+        );
+
+        assert_eq!(
+            parser().parse("2 <= 3"),
+            Ok(Expression::Relation(
+                Box::new(Expression::Atom(Atom::Int(2))),
+                RelationOp::LessThanOrEqual,
+                Box::new(Expression::Atom(Atom::Int(3))),
             ))
         );
     }
@@ -679,6 +795,117 @@ mod tests {
         assert_eq!(
             str_().parse(r"r'''\n'''"),
             Ok(Expression::Atom(Atom::String(String::from("\\n").into())))
+        );
+    }
+
+    #[test]
+    fn test_empty_list_parsing() {
+        assert_eq!(parser().parse("[]"), Ok(Expression::List(vec![])));
+    }
+
+    #[test]
+    fn test_int_list_parsing() {
+        assert_eq!(
+            parser().parse("[1,2,3]"),
+            Ok(Expression::List(vec![
+                Expression::Atom(Atom::Int(1)),
+                Expression::Atom(Atom::Int(2)),
+                Expression::Atom(Atom::Int(3)),
+            ]))
+        );
+    }
+    #[test]
+    fn test_list_index_parsing() {
+        assert_eq!(
+            parser().parse("[1,2,3][0]"),
+            Ok(Expression::Member(
+                Box::new(Expression::List(vec![
+                    Expression::Atom(Atom::Int(1)),
+                    Expression::Atom(Atom::Int(2)),
+                    Expression::Atom(Atom::Int(3)),
+                ])),
+                Member::Index(Box::new(Expression::Atom(Atom::Int(0)))),
+            ))
+        );
+    }
+
+    #[test]
+    fn test_mixed_type_list_parsing() {
+        assert_eq!(
+            parser().parse("['0', 1,2u,3.0, null]"),
+            Ok(Expression::List(vec![
+                Expression::Atom(Atom::String(String::from("0").into())),
+                Expression::Atom(Atom::Int(1)),
+                Expression::Atom(Atom::UInt(2)),
+                Expression::Atom(Atom::Float(3.0)),
+                Expression::Atom(Atom::Null),
+            ]))
+        );
+    }
+
+    #[test]
+    fn test_nested_list_parsing() {
+        assert_eq!(
+            parser().parse("[[], [], [[1]]]"),
+            Ok(Expression::List(vec![
+                Expression::List(vec![]),
+                Expression::List(vec![]),
+                Expression::List(vec![Expression::List(vec![Expression::Atom(Atom::Int(1))])]),
+            ]))
+        );
+    }
+
+    #[test]
+    fn test_in_list_relation() {
+        assert_eq!(
+            parser().parse("2 in [2]"),
+            Ok(Expression::Relation(
+                Box::new(Expression::Atom(Atom::Int(2))),
+                RelationOp::In,
+                Box::new(Expression::List(vec![Expression::Atom(Atom::Int(2))])),
+            ))
+        );
+    }
+
+    #[test]
+    fn test_empty_map_parsing() {
+        assert_eq!(parser().parse("{}"), Ok(Expression::Map(vec![])));
+    }
+
+    #[test]
+    fn test_nonempty_map_parsing() {
+        assert_eq!(
+            parser().parse("{'a': 1, 'b': 2}"),
+            Ok(Expression::Map(vec![
+                (
+                    Expression::Atom(Atom::String(String::from("a").into())),
+                    Expression::Atom(Atom::Int(1))
+                ),
+                (
+                    Expression::Atom(Atom::String(String::from("b").into())).into(),
+                    Expression::Atom(Atom::Int(2)),
+                )
+            ]))
+        );
+    }
+
+    #[test]
+    fn test_nonempty_map_index_parsing() {
+        assert_eq!(
+            parser().parse("{'a': 1, 'b': 2}[0]"),
+            Ok(Expression::Member(
+                Box::new(Expression::Map(vec![
+                    (
+                        Expression::Atom(Atom::String(String::from("a").into())),
+                        Expression::Atom(Atom::Int(1))
+                    ),
+                    (
+                        Expression::Atom(Atom::String(String::from("b").into())).into(),
+                        Expression::Atom(Atom::Int(2)),
+                    )
+                ])),
+                Member::Index(Box::new(Expression::Atom(Atom::Int(0)))),
+            ))
         );
     }
 }
