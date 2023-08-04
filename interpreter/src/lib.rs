@@ -303,6 +303,19 @@ pub fn eval<'a>(
                 },
                 _ => Err(format!("Can't OR a {:?}", evaluated_lhs))
             }
+        },
+        Expression::Ternary(condition, true_expression, false_expression) => {
+            let evaluated_condition = eval(condition, vars)?;
+            match evaluated_condition {
+                CelType::Bool(b) => {
+                    if b {
+                        eval(true_expression, vars)
+                    } else {
+                        eval(false_expression, vars)
+                    }
+                },
+                _ => Err(format!("Ternary condition must be a bool, got {:?}", evaluated_condition)),
+            }
         }
 
         _ => Err(format!("Need to handle expression {:?}", expr)),

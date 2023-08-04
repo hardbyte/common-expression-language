@@ -318,7 +318,26 @@ pub fn parser() -> impl Parser<char, Expression, Error = Simple<char>> {
             .foldl(|lhs, (_op, rhs)| Expression::Or(Box::new(lhs), Box::new(rhs)))
             .labelled("conditional or");
 
-        conditional_or
+        let ternary = conditional_or
+            .clone()
+            .then(just("?")
+                .ignore_then(conditional_or.clone())
+                .then_ignore(just(":"))
+                .then(conditional_or.clone())
+                .or_not()
+            )
+            .map(|(condition, ternary)| match ternary {
+                Some((true_expression, false_expression)) => Expression::Ternary(
+                    Box::new(condition),
+                    Box::new(true_expression),
+                    Box::new(false_expression),
+                ),
+                None => condition,
+            })
+            .labelled("ternary");
+
+        ternary
+
     });
 
     expr.clone()
