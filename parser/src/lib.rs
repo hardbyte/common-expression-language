@@ -65,11 +65,11 @@ mod tests {
     fn test_boolean_not_parser() {
         assert_parse_eq(
             "!true",
-            (Expression::Unary(UnaryOp::Not, Box::new(Expression::Atom(Atom::Bool(true))))),
+            Expression::Unary(UnaryOp::Not, Box::new(Expression::Atom(Atom::Bool(true)))),
         );
         assert_parse_eq(
             "!false",
-            (Expression::Unary(UnaryOp::Not, Box::new(Expression::Atom(Atom::Bool(false))))),
+            Expression::Unary(UnaryOp::Not, Box::new(Expression::Atom(Atom::Bool(false)))),
         );
     }
 
@@ -77,41 +77,41 @@ mod tests {
     fn test_parser_binary_bool_expressions() {
         assert_parse_eq(
             "true == true",
-            (Expression::Relation(
+            Expression::Relation(
                 Box::new(Expression::Atom(Atom::Bool(true))),
                 RelationOp::Equals,
                 Box::new(Expression::Atom(Atom::Bool(true))),
-            )),
+            ),
         );
     }
 
     #[test]
     fn test_number_parser_double() {
-        assert_parse_eq("1e3", (Expression::Atom(Atom::Float(1000.0))));
-        assert_parse_eq("1e-3", (Expression::Atom(Atom::Float(0.001))));
-        assert_parse_eq("1.4e-3", (Expression::Atom(Atom::Float(0.0014))));
+        assert_parse_eq("1e3", Expression::Atom(Atom::Float(1000.0)));
+        assert_parse_eq("1e-3", Expression::Atom(Atom::Float(0.001)));
+        assert_parse_eq("1.4e-3", Expression::Atom(Atom::Float(0.0014)));
     }
 
     #[test]
     fn test_parser_str() {
         assert_parse_eq(
             "'hi'",
-            (Expression::Atom(Atom::String(String::from("hi").into()))),
+            Expression::Atom(Atom::String(String::from("hi").into())),
         );
         assert_parse_eq(
             "'true'",
-            (Expression::Atom(Atom::String(String::from("true").into()))),
+            Expression::Atom(Atom::String(String::from("true").into())),
         );
 
         assert_parse_eq(
             "'''true\n'''",
-            (Expression::Atom(Atom::String(String::from("true\n").into()))),
+            Expression::Atom(Atom::String(String::from("true\n").into())),
         );
         assert_parse_eq(
             r##""""He said "Hi I'm Brian".""""##,
-            (Expression::Atom(Atom::String(
+            Expression::Atom(Atom::String(
                 String::from("He said \"Hi I'm Brian\".").into(),
-            ))),
+            )),
         );
     }
 
@@ -119,25 +119,25 @@ mod tests {
     fn test_parser_raw_strings() {
         assert_parse_eq(
             "r'\n'",
-            (Expression::Atom(Atom::String(String::from("\n").into()))),
+            Expression::Atom(Atom::String(String::from("\n").into())),
         );
     }
 
     #[test]
     fn test_parser_ident() {
-        assert_parse_eq("a", (Expression::Ident(String::from("a").into())));
+        assert_parse_eq("a", Expression::Ident(String::from("a").into()));
 
-        assert_parse_eq("hello ", (Expression::Ident(String::from("hello").into())));
+        assert_parse_eq("hello ", Expression::Ident(String::from("hello").into()));
     }
 
     #[test]
     fn test_parser_ident_function_call_no_args() {
         assert_parse_eq(
             "a()",
-            (Expression::Member(
+            Expression::Member(
                 Box::new(Expression::Ident(String::from("a").into())),
                 Member::FunctionCall(vec![]),
-            )),
+            ),
         );
     }
 
@@ -145,13 +145,13 @@ mod tests {
     fn test_parser_ident_function_call_nonempty_args() {
         assert_parse_eq(
             "a(0,1)",
-            (Expression::Member(
+            Expression::Member(
                 Box::new(Expression::Ident(String::from("a").into())),
                 Member::FunctionCall(vec![
                     Expression::Atom(Atom::Int(0)),
                     Expression::Atom(Atom::Int(1)),
                 ]),
-            )),
+            ),
         );
     }
 
@@ -159,36 +159,36 @@ mod tests {
     fn test_parser_positive_numbers() {
         assert_eq!(parse("1"), (Expression::Atom(Atom::Int(1))));
         assert_eq!(parse("1u"), (Expression::Atom(Atom::UInt(1))));
-        assert_parse_eq("1.0", (Expression::Atom(Atom::Float(1.0))));
+        assert_parse_eq("1.0", Expression::Atom(Atom::Float(1.0)));
     }
 
     #[test]
     fn test_parser_negative_numbers() {
         assert_parse_eq(
             "-1",
-            (Expression::Unary(UnaryOp::Neg, Box::new(Expression::Atom(Atom::Int(1))))),
+            Expression::Unary(UnaryOp::Neg, Box::new(Expression::Atom(Atom::Int(1)))),
         );
         assert_parse_eq(
             "-1u",
-            (Expression::Unary(UnaryOp::Neg, Box::new(Expression::Atom(Atom::UInt(1))))),
+            Expression::Unary(UnaryOp::Neg, Box::new(Expression::Atom(Atom::UInt(1)))),
         );
         assert_parse_eq(
             "-1e3",
-            (Expression::Unary(
+            Expression::Unary(
                 UnaryOp::Neg,
                 Box::new(Expression::Atom(Atom::Float(1000.0))),
-            )),
+            ),
         );
         assert_parse_eq(
             "-1e-3",
-            (Expression::Unary(UnaryOp::Neg, Box::new(Expression::Atom(Atom::Float(0.001))))),
+            Expression::Unary(UnaryOp::Neg, Box::new(Expression::Atom(Atom::Float(0.001)))),
         );
         assert_parse_eq(
             "-1.4e-3",
-            (Expression::Unary(
+            Expression::Unary(
                 UnaryOp::Neg,
                 Box::new(Expression::Atom(Atom::Float(0.0014))),
-            )),
+            ),
         );
     }
 
@@ -196,13 +196,13 @@ mod tests {
     fn test_parser_repeated_negatives_numbers() {
         assert_parse_eq(
             "--1",
-            (Expression::Unary(
+            Expression::Unary(
                 UnaryOp::Neg,
                 Box::new(Expression::Unary(
                     UnaryOp::Neg,
                     Box::new(Expression::Atom(Atom::Int(1))),
                 )),
-            )),
+            ),
         );
     }
 
@@ -210,7 +210,7 @@ mod tests {
     fn test_parser_delimited_expressions() {
         assert_parse_eq(
             "(-((1)))",
-            (Expression::Unary(UnaryOp::Neg, Box::new(Expression::Atom(Atom::Int(1))))),
+            Expression::Unary(UnaryOp::Neg, Box::new(Expression::Atom(Atom::Int(1)))),
         );
     }
 
@@ -218,37 +218,37 @@ mod tests {
     fn test_parser_integer_relations() {
         assert_parse_eq(
             "2 != 3",
-            (Expression::Relation(
+            Expression::Relation(
                 Box::new(Expression::Atom(Atom::Int(2))),
                 RelationOp::NotEquals,
                 Box::new(Expression::Atom(Atom::Int(3))),
-            )),
+            ),
         );
         assert_parse_eq(
             "2 == 3",
-            (Expression::Relation(
+            Expression::Relation(
                 Box::new(Expression::Atom(Atom::Int(2))),
                 RelationOp::Equals,
                 Box::new(Expression::Atom(Atom::Int(3))),
-            )),
+            ),
         );
 
         assert_parse_eq(
             "2 < 3",
-            (Expression::Relation(
+            Expression::Relation(
                 Box::new(Expression::Atom(Atom::Int(2))),
                 RelationOp::LessThan,
                 Box::new(Expression::Atom(Atom::Int(3))),
-            )),
+            ),
         );
 
         assert_parse_eq(
             "2 <= 3",
-            (Expression::Relation(
+            Expression::Relation(
                 Box::new(Expression::Atom(Atom::Int(2))),
                 RelationOp::LessThanOrEqual,
                 Box::new(Expression::Atom(Atom::Int(3))),
-            )),
+            ),
         );
     }
 
@@ -256,34 +256,34 @@ mod tests {
     fn test_parser_binary_product_expressions() {
         assert_parse_eq(
             "2 * 3",
-            (Expression::Arithmetic(
+            Expression::Arithmetic(
                 Box::new(Expression::Atom(Atom::Int(2))),
                 ArithmeticOp::Multiply,
                 Box::new(Expression::Atom(Atom::Int(3))),
-            )),
+            ),
         );
         assert_parse_eq(
             "2 * -3",
-            (Expression::Arithmetic(
+            Expression::Arithmetic(
                 Box::new(Expression::Atom(Atom::Int(2))),
                 ArithmeticOp::Multiply,
                 Box::new(Expression::Unary(
                     UnaryOp::Neg,
                     Box::new(Expression::Atom(Atom::Int(3))),
                 )),
-            )),
+            ),
         );
 
         assert_parse_eq(
             "2 / -3",
-            (Expression::Arithmetic(
+            Expression::Arithmetic(
                 Box::new(Expression::Atom(Atom::Int(2))),
                 ArithmeticOp::Divide,
                 Box::new(Expression::Unary(
                     UnaryOp::Neg,
                     Box::new(Expression::Atom(Atom::Int(3))),
                 )),
-            )),
+            ),
         );
     }
 
@@ -291,22 +291,22 @@ mod tests {
     fn test_parser_sum_expressions() {
         assert_parse_eq(
             "2 + 3",
-            (Expression::Arithmetic(
+            Expression::Arithmetic(
                 Box::new(Expression::Atom(Atom::Int(2))),
                 ArithmeticOp::Add,
                 Box::new(Expression::Atom(Atom::Int(3))),
-            )),
+            ),
         );
         assert_parse_eq(
             "2 - -3",
-            (Expression::Arithmetic(
+            Expression::Arithmetic(
                 Box::new(Expression::Atom(Atom::Int(2))),
                 ArithmeticOp::Subtract,
                 Box::new(Expression::Unary(
                     UnaryOp::Neg,
                     Box::new(Expression::Atom(Atom::Int(3))),
                 )),
-            )),
+            ),
         );
     }
 
@@ -319,11 +319,11 @@ mod tests {
     fn test_int_list_parsing() {
         assert_parse_eq(
             "[1,2,3]",
-            (Expression::List(vec![
+            Expression::List(vec![
                 Expression::Atom(Atom::Int(1)),
                 Expression::Atom(Atom::Int(2)),
                 Expression::Atom(Atom::Int(3)),
-            ])),
+            ]),
         );
     }
 
@@ -331,14 +331,14 @@ mod tests {
     fn test_list_index_parsing() {
         assert_parse_eq(
             "[1,2,3][0]",
-            (Expression::Member(
+            Expression::Member(
                 Box::new(Expression::List(vec![
                     Expression::Atom(Atom::Int(1)),
                     Expression::Atom(Atom::Int(2)),
                     Expression::Atom(Atom::Int(3)),
                 ])),
                 Member::Index(Box::new(Expression::Atom(Atom::Int(0)))),
-            )),
+            ),
         );
     }
 
@@ -346,13 +346,13 @@ mod tests {
     fn test_mixed_type_list_parsing() {
         assert_parse_eq(
             "['0', 1,2u,3.0, null]",
-            (Expression::List(vec![
+            Expression::List(vec![
                 Expression::Atom(Atom::String(String::from("0").into())),
                 Expression::Atom(Atom::Int(1)),
                 Expression::Atom(Atom::UInt(2)),
                 Expression::Atom(Atom::Float(3.0)),
                 Expression::Atom(Atom::Null),
-            ])),
+            ]),
         );
     }
 
@@ -360,11 +360,11 @@ mod tests {
     fn test_nested_list_parsing() {
         assert_parse_eq(
             "[[], [], [[1]]]",
-            (Expression::List(vec![
+            Expression::List(vec![
                 Expression::List(vec![]),
                 Expression::List(vec![]),
                 Expression::List(vec![Expression::List(vec![Expression::Atom(Atom::Int(1))])]),
-            ])),
+            ]),
         );
     }
 
@@ -372,11 +372,11 @@ mod tests {
     fn test_in_list_relation() {
         assert_parse_eq(
             "2 in [2]",
-            (Expression::Relation(
+            Expression::Relation(
                 Box::new(Expression::Atom(Atom::Int(2))),
                 RelationOp::In,
                 Box::new(Expression::List(vec![Expression::Atom(Atom::Int(2))])),
-            )),
+            ),
         );
     }
 
@@ -389,7 +389,7 @@ mod tests {
     fn test_nonempty_map_parsing() {
         assert_parse_eq(
             "{'a': 1, 'b': 2}",
-            (Expression::Map(vec![
+            Expression::Map(vec![
                 (
                     Expression::Atom(Atom::String(String::from("a").into())),
                     Expression::Atom(Atom::Int(1)),
@@ -398,7 +398,7 @@ mod tests {
                     Expression::Atom(Atom::String(String::from("b").into())).into(),
                     Expression::Atom(Atom::Int(2)),
                 ),
-            ])),
+            ]),
         );
     }
 
@@ -406,17 +406,17 @@ mod tests {
     fn test_conditionals() {
         assert_parse_eq(
             "true && true",
-            (Expression::And(
+            Expression::And(
                 Box::new(Expression::Atom(Atom::Bool(true))),
                 Box::new(Expression::Atom(Atom::Bool(true))),
-            )),
+            ),
         );
         assert_parse_eq(
             "false || true",
-            (Expression::Or(
+            Expression::Or(
                 Box::new(Expression::Atom(Atom::Bool(false))),
                 Box::new(Expression::Atom(Atom::Bool(true))),
-            )),
+            ),
         );
     }
 
@@ -424,7 +424,7 @@ mod tests {
     fn test_ternary_true_condition() {
         assert_parse_eq(
             "true ? 'result_true' : 'result_false'",
-            (Expression::Ternary(
+            Expression::Ternary(
                 Box::new(Expression::Atom(Atom::Bool(true))),
                 Box::new(Expression::Atom(Atom::String(
                     "result_true".to_string().into(),
@@ -432,16 +432,16 @@ mod tests {
                 Box::new(Expression::Atom(Atom::String(
                     "result_false".to_string().into(),
                 ))),
-            )),
+            ),
         );
 
         assert_parse_eq(
             "true ? 100 : 200",
-            (Expression::Ternary(
+            Expression::Ternary(
                 Box::new(Expression::Atom(Atom::Bool(true))),
                 Box::new(Expression::Atom(Atom::Int(100))),
                 Box::new(Expression::Atom(Atom::Int(200))),
-            )),
+            ),
         );
     }
 
@@ -449,7 +449,7 @@ mod tests {
     fn test_ternary_false_condition() {
         assert_parse_eq(
             "false ? 'result_true' : 'result_false'",
-            (Expression::Ternary(
+            Expression::Ternary(
                 Box::new(Expression::Atom(Atom::Bool(false))),
                 Box::new(Expression::Atom(Atom::String(
                     "result_true".to_string().into(),
@@ -457,7 +457,7 @@ mod tests {
                 Box::new(Expression::Atom(Atom::String(
                     "result_false".to_string().into(),
                 ))),
-            )),
+            ),
         );
     }
 
@@ -465,7 +465,7 @@ mod tests {
     fn test_nonempty_map_index_parsing() {
         assert_parse_eq(
             "{'a': 1, 'b': 2}[0]",
-            (Expression::Member(
+            Expression::Member(
                 Box::new(Expression::Map(vec![
                     (
                         Expression::Atom(Atom::String(String::from("a").into())),
@@ -477,7 +477,7 @@ mod tests {
                     ),
                 ])),
                 Member::Index(Box::new(Expression::Atom(Atom::Int(0)))),
-            )),
+            ),
         );
     }
 }
