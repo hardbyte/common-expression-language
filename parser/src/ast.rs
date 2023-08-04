@@ -1,6 +1,5 @@
 use std::rc::Rc;
 
-
 #[derive(Debug, PartialEq, Clone)]
 pub enum RelationOp {
     // "<" | "<=" | ">=" | ">" | "==" | "!=" | "in"
@@ -12,7 +11,6 @@ pub enum RelationOp {
     LessThanOrEqual,
     In,
 }
-
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum ArithmeticOp {
@@ -40,7 +38,6 @@ pub enum UnaryOp {
     Neg,
     Not,
 }
-
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Member {
