@@ -4,7 +4,7 @@ use std::rc::Rc;
 pub enum Atom {
     Int(i64),
     UInt(u64),
-    Double(f64),
+    Float(f64),
     // A reference counted String
     String(Rc<String>),
     Bytes(Rc<Vec<u8>>),
@@ -19,45 +19,53 @@ pub enum UnaryOp {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum BinaryOp {
+pub enum ArithmeticOp {
     Add,
-    Sub,
-    Mul,
-    Div,
+    Subtract,
+    Multiply,
+    Divide,
+}
 
+#[derive(Debug, PartialEq, Clone)]
+pub enum RelationOp {
     // "<" | "<=" | ">=" | ">" | "==" | "!=" | "in"
-    // Could be BinaryRel instead, but not sure if that's necessary
-    // In,
     NotEquals,
     Equals,
     GreaterThan,
     GreaterThanOrEqual,
     LessThan,
     LessThanOrEqual,
+    In,
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum MemberOp {
+pub enum Member {
     // a.b, a[b, c...], a(b, c, ...)
     Attribute(String),
-    Index(Vec<Expr>),
-    Call(Vec<Expr>),
+    FunctionCall(Vec<Expression>),
+    Index(Box<Expression>),
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum Expr {
+pub enum Expression {
+    Arithmetic(Box<Expression>, ArithmeticOp, Box<Expression>),
+    Relation(Box<Expression>, RelationOp, Box<Expression>),
+
+    Ternary(Box<Expression>, Box<Expression>, Box<Expression>),
+
+    Or(Box<Expression>, Box<Expression>),
+    And(Box<Expression>, Box<Expression>),
+
     Atom(Atom),
 
-    Var(String),
+    Ident(String),
 
-    Member(Box<Expr>, MemberOp),
+    Member(Box<Expression>, Member),
 
-    Unary(UnaryOp, Box<Expr>),
+    Unary(UnaryOp, Box<Expression>),
 
-    Binary(Box<Expr>, BinaryOp, Box<Expr>),
-
-    List(Vec<Expr>),
+    List(Vec<Expression>),
 
     // Associative arrays with int, uint, bool, or string keys
-    Map(Vec<(Expr, Expr)>),
+    Map(Vec<(Expression, Expression)>),
 }

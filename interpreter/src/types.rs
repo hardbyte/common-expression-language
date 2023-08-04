@@ -160,7 +160,7 @@ impl From<&Atom> for CelType {
         match atom {
             Atom::Int(i) => CelType::NumericCelType(NumericCelType::Int(*i)),
             Atom::UInt(ui) => CelType::NumericCelType(NumericCelType::UInt(*ui)),
-            Atom::Double(f) => CelType::NumericCelType(NumericCelType::Float(*f)),
+            Atom::Float(f) => CelType::NumericCelType(NumericCelType::Float(*f)),
             Atom::Bool(b) => CelType::Bool(*b),
             Atom::Bytes(b) => CelType::Bytes(b.clone()),
             Atom::Null => CelType::Null,
