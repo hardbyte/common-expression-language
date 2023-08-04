@@ -253,7 +253,7 @@ pub fn eval<'a>(
                     evaluated_lhs
                 )),
             }
-            //Err(format!("Need to handle member operation"))
+
         }
         Expression::Member(lhs, Member::FunctionCall(args)) => {
             let evaluated_lhs = eval(lhs, vars)?;
@@ -270,7 +270,42 @@ pub fn eval<'a>(
                 _ => Err(format!("Can't call this type")),
             }
         }
-        _ => Err(format!("Need to handle member operation")),
+        Expression::And(lhs, rhs) => {
+            let evaluated_lhs = eval(lhs, vars)?;
+            match evaluated_lhs {
+                CelType::Bool(b) => {
+                    if b {
+                        let evaluated_rhs = eval(rhs, vars)?;
+                        match evaluated_rhs {
+                            CelType::Bool(b) => Ok(CelType::Bool(b)),
+                            _ => Err(format!("Can't AND a bool with {:?}", evaluated_rhs)),
+                        }
+                    } else {
+                        Ok(CelType::Bool(false))
+                    }
+                },
+                _ => Err(format!("Can't AND a {:?}", evaluated_lhs)),
+            }
+        }
+        Expression::Or(lhs, rhs) => {
+            let evaluated_lhs = eval(lhs, vars)?;
+            match evaluated_lhs {
+                CelType::Bool(b) => {
+                    if b {
+                        Ok(CelType::Bool(true))
+                    } else {
+                        let evaluated_rhs = eval(rhs, vars)?;
+                        match evaluated_rhs {
+                            CelType::Bool(b) => Ok(CelType::Bool(b)),
+                            _ => Err(format!("Can't OR a bool with {:?}", evaluated_rhs)),
+                        }
+                    }
+                },
+                _ => Err(format!("Can't OR a {:?}", evaluated_lhs))
+            }
+        }
+
+        _ => Err(format!("Need to handle expression {:?}", expr)),
     }
 }
 

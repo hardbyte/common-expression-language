@@ -306,7 +306,19 @@ pub fn parser() -> impl Parser<char, Expression, Error = Simple<char>> {
             .foldl(|lhs, (op, rhs)| Expression::Relation(Box::new(lhs), op, Box::new(rhs)))
             .labelled("comparison");
 
-        relation
+        let conditional_and = relation
+            .clone()
+            .then(just("&&").then(relation.clone()).repeated())
+            .foldl(|lhs, (_op, rhs)| Expression::And(Box::new(lhs), Box::new(rhs)))
+            .labelled("conditional and");
+
+        let conditional_or = conditional_and
+            .clone()
+            .then(just("||").then(conditional_and.clone()).repeated())
+            .foldl(|lhs, (_op, rhs)| Expression::Or(Box::new(lhs), Box::new(rhs)))
+            .labelled("conditional or");
+
+        conditional_or
     });
 
     expr.clone()
