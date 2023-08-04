@@ -253,7 +253,6 @@ pub fn eval<'a>(
                     evaluated_lhs
                 )),
             }
-
         }
         Expression::Member(lhs, Member::FunctionCall(args)) => {
             let evaluated_lhs = eval(lhs, vars)?;
@@ -283,7 +282,7 @@ pub fn eval<'a>(
                     } else {
                         Ok(CelType::Bool(false))
                     }
-                },
+                }
                 _ => Err(format!("Can't AND a {:?}", evaluated_lhs)),
             }
         }
@@ -300,10 +299,10 @@ pub fn eval<'a>(
                             _ => Err(format!("Can't OR a bool with {:?}", evaluated_rhs)),
                         }
                     }
-                },
-                _ => Err(format!("Can't OR a {:?}", evaluated_lhs))
+                }
+                _ => Err(format!("Can't OR a {:?}", evaluated_lhs)),
             }
-        },
+        }
         Expression::Ternary(condition, true_expression, false_expression) => {
             let evaluated_condition = eval(condition, vars)?;
             match evaluated_condition {
@@ -313,8 +312,11 @@ pub fn eval<'a>(
                     } else {
                         eval(false_expression, vars)
                     }
-                },
-                _ => Err(format!("Ternary condition must be a bool, got {:?}", evaluated_condition)),
+                }
+                _ => Err(format!(
+                    "Ternary condition must be a bool, got {:?}",
+                    evaluated_condition
+                )),
             }
         }
 
@@ -479,6 +481,63 @@ mod tests {
         assert_eq!(
             evaluate_cel_expression("size('hello') == 5u"),
             CelType::Bool(true)
+        );
+    }
+
+    #[test]
+    fn test_evaluate_and() {
+        assert_eq!(evaluate_cel_expression("true && true"), CelType::Bool(true));
+
+        assert_eq!(
+            evaluate_cel_expression("true && false"),
+            CelType::Bool(false)
+        );
+        assert_eq!(
+            evaluate_cel_expression("false && true"),
+            CelType::Bool(false)
+        );
+    }
+    #[test]
+    fn test_evaluate_or() {
+        assert_eq!(evaluate_cel_expression("true || true"), CelType::Bool(true));
+
+        assert_eq!(
+            evaluate_cel_expression("true || false"),
+            CelType::Bool(true)
+        );
+        assert_eq!(
+            evaluate_cel_expression("false || true"),
+            CelType::Bool(true)
+        );
+        assert_eq!(
+            evaluate_cel_expression("false || false"),
+            CelType::Bool(false)
+        );
+    }
+
+    #[test]
+    fn test_evaluate_ternary() {
+        assert_eq!(
+            evaluate_cel_expression("true ? 'result_true' : 'result_false'"),
+            CelType::String("result_true".to_string().into())
+        );
+
+        assert_eq!(
+            evaluate_cel_expression("false ? 'result_true' : 'result_false'"),
+            CelType::String("result_false".to_string().into())
+        );
+
+        assert_eq!(
+            evaluate_cel_expression("1 == 1 ? 'result_true' : 'result_false'"),
+            CelType::String("result_true".to_string().into())
+        );
+    }
+
+    #[test]
+    fn test_evaluate_ternary_numeric() {
+        assert_eq!(
+            evaluate_cel_expression("true ? 100 : 200"),
+            CelType::NumericCelType(NumericCelType::Int(100))
         );
     }
 

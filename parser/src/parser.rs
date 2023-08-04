@@ -320,11 +320,12 @@ pub fn parser() -> impl Parser<char, Expression, Error = Simple<char>> {
 
         let ternary = conditional_or
             .clone()
-            .then(just("?")
-                .ignore_then(conditional_or.clone())
-                .then_ignore(just(":"))
-                .then(conditional_or.clone())
-                .or_not()
+            .then(
+                just("?")
+                    .ignore_then(conditional_or.clone())
+                    .then_ignore(just(":"))
+                    .then(conditional_or.clone())
+                    .or_not(),
             )
             .map(|(condition, ternary)| match ternary {
                 Some((true_expression, false_expression)) => Expression::Ternary(
@@ -337,7 +338,6 @@ pub fn parser() -> impl Parser<char, Expression, Error = Simple<char>> {
             .labelled("ternary");
 
         ternary
-
     });
 
     expr.clone()
@@ -923,6 +923,65 @@ mod tests {
                     Expression::Atom(Atom::Int(2)),
                 )
             ]))
+        );
+    }
+
+    #[test]
+    fn test_conditionals() {
+        assert_eq!(
+            parser().parse("true && true"),
+            Ok(Expression::And(
+                Box::new(Expression::Atom(Atom::Bool(true))),
+                Box::new(Expression::Atom(Atom::Bool(true))),
+            ))
+        );
+        assert_eq!(
+            parser().parse("false || true"),
+            Ok(Expression::Or(
+                Box::new(Expression::Atom(Atom::Bool(false))),
+                Box::new(Expression::Atom(Atom::Bool(true))),
+            ))
+        );
+    }
+
+    #[test]
+    fn test_ternary_true_condition() {
+        assert_eq!(
+            parser().parse("true ? 'result_true' : 'result_false'"),
+            Ok(Expression::Ternary(
+                Box::new(Expression::Atom(Atom::Bool(true))),
+                Box::new(Expression::Atom(Atom::String(
+                    "result_true".to_string().into()
+                ))),
+                Box::new(Expression::Atom(Atom::String(
+                    "result_false".to_string().into()
+                ))),
+            ))
+        );
+
+        assert_eq!(
+            parser().parse("true ? 100 : 200"),
+            Ok(Expression::Ternary(
+                Box::new(Expression::Atom(Atom::Bool(true))),
+                Box::new(Expression::Atom(Atom::Int(100))),
+                Box::new(Expression::Atom(Atom::Int(200))),
+            ))
+        );
+    }
+
+    #[test]
+    fn test_ternary_false_condition() {
+        assert_eq!(
+            parser().parse("false ? 'result_true' : 'result_false'"),
+            Ok(Expression::Ternary(
+                Box::new(Expression::Atom(Atom::Bool(false))),
+                Box::new(Expression::Atom(Atom::String(
+                    "result_true".to_string().into()
+                ))),
+                Box::new(Expression::Atom(Atom::String(
+                    "result_false".to_string().into()
+                ))),
+            ))
         );
     }
 
