@@ -1,5 +1,28 @@
 use std::rc::Rc;
 
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum RelationOp {
+    // "<" | "<=" | ">=" | ">" | "==" | "!=" | "in"
+    NotEquals,
+    Equals,
+    GreaterThan,
+    GreaterThanOrEqual,
+    LessThan,
+    LessThanOrEqual,
+    In,
+}
+
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum ArithmeticOp {
+    Add,
+    Subtract,
+    Multiply,
+    Divide,
+    Modulus,
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum Atom {
     Int(i64),
@@ -18,25 +41,6 @@ pub enum UnaryOp {
     Not,
 }
 
-#[derive(Debug, PartialEq, Clone)]
-pub enum ArithmeticOp {
-    Add,
-    Subtract,
-    Multiply,
-    Divide,
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub enum RelationOp {
-    // "<" | "<=" | ">=" | ">" | "==" | "!=" | "in"
-    NotEquals,
-    Equals,
-    GreaterThan,
-    GreaterThanOrEqual,
-    LessThan,
-    LessThanOrEqual,
-    In,
-}
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Member {

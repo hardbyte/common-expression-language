@@ -79,6 +79,21 @@ impl ops::Div<NumericCelType> for NumericCelType {
     }
 }
 
+impl ops::Rem<NumericCelType> for NumericCelType {
+    type Output = NumericCelType;
+
+    fn rem(self, rhs: NumericCelType) -> Self::Output {
+        match (self, rhs) {
+            (NumericCelType::UInt(x), NumericCelType::UInt(y)) => NumericCelType::UInt(x % y),
+            (NumericCelType::Int(x), NumericCelType::Int(y)) => NumericCelType::Int(x % y),
+            (NumericCelType::Float(x), NumericCelType::Float(y)) => NumericCelType::Float(x % y),
+
+            // Fallback will occur with mixed types
+            (x, y) => unimplemented!("Unable to evaluate: {:?} / {:?}", x, y),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Eq, Hash, PartialEq, PartialOrd)]
 pub enum CelMapKey {
     Int(i64),

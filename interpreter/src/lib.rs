@@ -152,6 +152,7 @@ pub fn eval<'a>(
                     ArithmeticOp::Divide => Ok(CelType::NumericCelType(a / b)),
                     ArithmeticOp::Add => Ok(CelType::NumericCelType(a + b)),
                     ArithmeticOp::Subtract => Ok(CelType::NumericCelType(a - b)),
+                    ArithmeticOp::Modulus => Ok(CelType::NumericCelType(a % b)),
                 },
                 (CelType::List(a), CelType::List(b)) => match op {
                     ArithmeticOp::Add => {
@@ -429,6 +430,14 @@ mod tests {
         assert_eq!(evaluate_cel_expression("5 + 3 == 8"), CelType::Bool(true));
         assert_eq!(
             evaluate_cel_expression("1.0 / 2.0 == 0.5"),
+            CelType::Bool(true)
+        );
+        assert_eq!(
+            evaluate_cel_expression("10.0 % 2.0 == 0.0"),
+            CelType::Bool(true)
+        );
+        assert_eq!(
+            evaluate_cel_expression("10.0 % 3.0 == 1.0"),
             CelType::Bool(true)
         );
     }

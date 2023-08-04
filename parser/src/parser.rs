@@ -271,7 +271,8 @@ pub fn parser() -> impl Parser<char, Expression, Error = Simple<char>> {
 
         let product_div_op = op('*')
             .to(ArithmeticOp::Multiply)
-            .or(op('/').to(ArithmeticOp::Divide));
+            .or(op('/').to(ArithmeticOp::Divide))
+            .or(op('%').to(ArithmeticOp::Modulus));
 
         let multiplication = unary
             .clone()
