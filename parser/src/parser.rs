@@ -59,12 +59,8 @@ fn numbers() -> impl Parser<char, Expression, Error = Simple<char>> {
 
 fn str_inner(
     delimiter: &str,
-    escaping: bool
+    escaping: bool,
 ) -> impl Parser<char, String, Error = Simple<char>> + '_ {
-
-    // Idea to explore in the future... we could pass in an optional `escape` Parser
-    // so this function could be used for strings and bytes.
-
     let unicode = filter::<_, _, Simple<char>>(|c: &char| c.is_ascii_hexdigit())
         .repeated()
         .exactly(4)
@@ -126,10 +122,7 @@ fn str_inner(
         .collect::<String>()
 }
 
-fn bytes_inner(
-    delimiter: &str
-) -> impl Parser<char, Vec<u8>, Error = Simple<char>> + '_ {
-
+fn bytes_inner(delimiter: &str) -> impl Parser<char, Vec<u8>, Error = Simple<char>> + '_ {
     let hex_code_point = filter::<_, _, Simple<char>>(|c: &char| c.is_ascii_hexdigit())
         .repeated()
         .exactly(2)
@@ -152,9 +145,8 @@ fn bytes_inner(
             })
         });
 
-
-    let escape = just('\\').ignore_then(
-        choice((
+    let escape = just('\\')
+        .ignore_then(choice((
             just('\\').to(b'\\'),
             just(delimiter).to(delimiter.as_bytes()[0]),
             just('n').to(b'\n'),
@@ -170,19 +162,14 @@ fn bytes_inner(
         .map(|c: u8| vec![c]);
 
     let forbidden = just(delimiter).or(just("\\")).boxed();
-    let not_forbidden = forbidden.not()
-        .map(|c: char|
-            c.to_string().into_bytes()
-        );
+    let not_forbidden = forbidden.not().map(|c: char| c.to_string().into_bytes());
     let inner_string = not_forbidden.or(escape).boxed();
-
 
     inner_string
         .repeated()
         .delimited_by(just(delimiter), just(delimiter))
         .collect::<Vec<Vec<u8>>>()
         .flatten()
-
 }
 
 // Ref https://github.com/01mf02/jaq/blob/main/jaq-parse/src/token.rs
@@ -196,9 +183,9 @@ fn str_() -> impl Parser<char, Expression, Error = Simple<char>> {
     // Byte literals
     let single_quoted_bytes = just("b")
         .ignore_then(bytes_inner("'"))
-        // .map(|data| {
-        //     data
-        // })
+        .labelled("single quoted byte string");
+    let double_quoted_bytes = just("b")
+        .ignore_then(bytes_inner("\""))
         .labelled("single quoted byte string");
 
     // Raw strings don't interpret escape sequences.
@@ -234,10 +221,8 @@ fn str_() -> impl Parser<char, Expression, Error = Simple<char>> {
     ))
     .map(|s| Expression::Atom(Atom::String(s.into())));
 
-    let bytes = choice((
-        single_quoted_bytes,
-    ))
-    .map(|b| Expression::Atom(Atom::Bytes(b.into())));
+    let bytes = choice((single_quoted_bytes, double_quoted_bytes))
+        .map(|b| Expression::Atom(Atom::Bytes(b.into())));
 
     choice((strings, bytes))
 }
@@ -600,7 +585,6 @@ mod tests {
             str_().parse(r"b'ÿ'"),
             Ok(Expression::Atom(Atom::Bytes(expected.into())))
         );
-
     }
 
     #[test]
@@ -641,5 +625,4 @@ mod tests {
             Ok(Expression::Atom(Atom::Bytes(expected.into())))
         );
     }
-
 }
