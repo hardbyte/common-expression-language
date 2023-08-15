@@ -193,7 +193,7 @@ pub fn eval<'a>(
             }))
         }
         Expression::Member(lhs, Member::Index(index_expression)) => {
-            println!("Evaluating a member[index]");
+            //println!("Evaluating a member[index]");
             // What can we assert about the LHS?
             let evaluated_lhs = eval(lhs, vars)?;
             match evaluated_lhs {
