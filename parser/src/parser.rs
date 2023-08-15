@@ -126,52 +126,64 @@ fn str_inner(
         .collect::<String>()
 }
 
-// WIP
-// fn bytes_inner(
-//     delimiter: &str
-// ) -> impl Parser<char, Vec<u8>, Error = Simple<char>> + '_ {
-//
-//     let hex_code_point = filter::<_, _, Simple<char>>(|c: &char| c.is_ascii_hexdigit())
-//         .repeated()
-//         .exactly(2)
-//         .collect::<String>()
-//         // Note this maps to u8 as well as validating
-//         .validate(|digits, span, emit| {
-//             u8::from_str_radix(&digits, 16).unwrap_or_else(|_| {
-//                 emit(Simple::custom(span, "invalid hexadecimal character"));
-//                 0u8
-//             })
-//         });
-//
-//     let octal_code_point = filter::<_, _, Simple<char>>(|c: &char| c.is_ascii_digit())
-//         .repeated()
-//         .exactly(3)
-//         .collect::<String>()
-//         .validate(|digits, span, emit| {
-//             u8::from_str_radix(&digits, 8).unwrap_or_else(|_| {
-//                 emit(Simple::custom(span, "invalid octal code point"));
-//                 0u8
-//             })
-//         });
-//
-//
-//     let escape = just('\\').ignore_then(choice((
-//         // TODO handle \\ \delim and \n etc here
-//         //just('\\'),
-//
-//         just('x').or(just('X')).ignore_then(hex_code_point),
-//         octal_code_point,
-//     )));
-//
-//     let mut forbidden = just(delimiter).or(just("\\")).boxed();
-//     let mut inner_string = forbidden.not().or(escape).boxed();
-//
-//
-//     inner_string
-//         .repeated()
-//         .delimited_by(just(delimiter), just(delimiter))
-//         .collect::<String>()
-// }
+fn bytes_inner(
+    delimiter: &str
+) -> impl Parser<char, Vec<u8>, Error = Simple<char>> + '_ {
+
+    let hex_code_point = filter::<_, _, Simple<char>>(|c: &char| c.is_ascii_hexdigit())
+        .repeated()
+        .exactly(2)
+        .collect::<String>()
+        .validate(|digits, span, emit| {
+            u8::from_str_radix(&digits, 16).unwrap_or_else(|_| {
+                emit(Simple::custom(span, "invalid hexadecimal character"));
+                0u8
+            })
+        });
+
+    let octal_code_point = filter::<_, _, Simple<char>>(|c: &char| c.is_ascii_digit())
+        .repeated()
+        .exactly(3)
+        .collect::<String>()
+        .validate(|digits, span, emit| {
+            u8::from_str_radix(&digits, 8).unwrap_or_else(|_| {
+                emit(Simple::custom(span, "invalid octal code point"));
+                0u8
+            })
+        });
+
+
+    let escape = just('\\').ignore_then(
+        choice((
+            just('\\').to(b'\\'),
+            just(delimiter).to(delimiter.as_bytes()[0]),
+            just('n').to(b'\n'),
+            just('a').to(b'\x07'),
+            just('b').to(b'\x08'),
+            just('f').to(b'\x0c'),
+            just('r').to(b'\r'),
+            just('t').to(b'\t'),
+            just('v').to(b'\x0b'),
+            just('x').or(just('X')).ignore_then(hex_code_point),
+            octal_code_point,
+        )))
+        .map(|c: u8| vec![c]);
+
+    let forbidden = just(delimiter).or(just("\\")).boxed();
+    let not_forbidden = forbidden.not()
+        .map(|c: char|
+            c.to_string().into_bytes()
+        );
+    let inner_string = not_forbidden.or(escape).boxed();
+
+
+    inner_string
+        .repeated()
+        .delimited_by(just(delimiter), just(delimiter))
+        .collect::<Vec<Vec<u8>>>()
+        .flatten()
+
+}
 
 // Ref https://github.com/01mf02/jaq/blob/main/jaq-parse/src/token.rs
 // See also https://github.com/PRQL/prql/blob/main/prql-compiler/src/parser/lexer.rs#L295-L354
@@ -182,15 +194,11 @@ fn str_() -> impl Parser<char, Expression, Error = Simple<char>> {
     let double_quoted_string = str_inner("\"", true).labelled("double quoted string");
 
     // Byte literals
-    let single_quoted_bytes = just("b").ignore_then(
-        str_inner("'", false))
-        .map(|s: String| {
-            // We have a String but we haven't processed any escaping characters
-            // For now let's just map to bytes noting we should process escaped
-            // octals (e.g. '\303'), and hexadecimals ('\xFF') see commented out `bytes_inner` above.
-            let b: Vec<u8> = s.bytes().collect();
-            b
-        })
+    let single_quoted_bytes = just("b")
+        .ignore_then(bytes_inner("'"))
+        // .map(|data| {
+        //     data
+        // })
         .labelled("single quoted byte string");
 
     // Raw strings don't interpret escape sequences.
@@ -565,6 +573,26 @@ mod tests {
     }
 
     #[test]
+    fn test_raw_bytes_escaped_newlines() {
+        let expected: Vec<u8> = vec![10];
+
+        assert_eq!(
+            str_().parse(r"b'\n'"),
+            Ok(Expression::Atom(Atom::Bytes(expected.into())))
+        );
+    }
+
+    #[test]
+    fn test_raw_bytes_escaped_delimiter() {
+        let expected: Vec<u8> = vec![39];
+
+        assert_eq!(
+            str_().parse(r"b'\''"),
+            Ok(Expression::Atom(Atom::Bytes(expected.into())))
+        );
+    }
+
+    #[test]
     fn test_raw_bytes_unicode() {
         let expected: Vec<u8> = vec![195, 191];
 
@@ -573,6 +601,16 @@ mod tests {
             Ok(Expression::Atom(Atom::Bytes(expected.into())))
         );
 
+    }
+
+    #[test]
+    fn test_raw_bytes_invalid_utf8() {
+        let expected: Vec<u8> = vec![0, 255];
+
+        assert_eq!(
+            str_().parse(r"b'\000\xff'"),
+            Ok(Expression::Atom(Atom::Bytes(expected.into())))
+        );
     }
 
     #[test]
