@@ -1,7 +1,7 @@
 use crate::ast::{ArithmeticOp, Atom, Expression, Member, RelationOp, UnaryOp};
-
 use chumsky::prelude::*;
 use chumsky::Parser;
+use std::rc::Rc;
 
 fn boolean() -> impl Parser<char, Expression, Error = Simple<char>> {
     just("true")
@@ -288,6 +288,37 @@ pub fn parser() -> impl Parser<char, Expression, Error = Simple<char>> {
             .padded()
             .map(|items| Expression::Map(items))
             .labelled("map");
+
+        let field_identifier = text::ident::<char, Simple<char>>()
+            .padded()
+            .map(|s| {
+                let ref_counted_field_id: Rc<String> = Rc::from(String::from(s));
+                ref_counted_field_id
+            })
+            .labelled("field identifier");
+
+        let field_item = field_identifier
+            .clone()
+            .then_ignore(just(':'))
+            .then(expr.clone().padded());
+
+        let field_items = field_item
+            .clone()
+            .separated_by(just(','))
+            .delimited_by(just('{'), just('}'))
+            .padded()
+            .collect::<Vec<(Rc<String>, Expression)>>()
+            .labelled("field items");
+
+        // TODO Need to handle nested identifiers here
+        // e.g. `.then(just('.').then(ident.clone())).repeated()`
+
+        // let field_inits = ident
+        //     .clone()
+        //     .then(field_items)
+        //     .map(|(name, items)| {
+        //         Expression::Member(name, Member::Fields(items))
+        //     })
 
         let primary = choice((
             literal,
@@ -616,6 +647,7 @@ mod tests {
             Ok(Expression::Atom(Atom::Bytes(expected.into())))
         );
     }
+
     #[test]
     fn test_raw_bytes_single_hexadecimal() {
         let expected = vec![0xff as u8];
