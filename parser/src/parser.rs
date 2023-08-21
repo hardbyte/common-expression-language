@@ -313,23 +313,14 @@ pub fn parser() -> impl Parser<char, Expression, Error = Simple<char>> {
         // TODO Need to handle nested identifiers here
         // e.g. `.then(just('.').then(ident.clone())).repeated()`
 
-        // let field_inits = ident
-        //     .clone()
-        //     .then(field_items)
-        //     .map(|(name, items)| {
-        //         Expression::Member(name, Member::Fields(items))
-        //     })
+        let field_inits = ident
+            .clone()
+            .then(field_items)
+            .map(|(name, items)| Expression::Member(Box::new(name), Member::Fields(items)));
 
-        let primary = choice((
-            literal,
-            ident,
-            expr_in_paren,
-            list,
-            map,
-            // TODO field inits here
-        ))
-        .labelled("primary")
-        .boxed();
+        let primary = choice((literal, field_inits, ident, expr_in_paren, list, map))
+            .labelled("primary")
+            .boxed();
 
         let member_chain = primary
             .clone()

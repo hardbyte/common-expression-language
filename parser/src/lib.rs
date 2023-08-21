@@ -1,5 +1,6 @@
 pub mod ast;
 pub mod parser;
+
 use chumsky::error::Simple;
 use chumsky::Parser;
 
@@ -477,6 +478,26 @@ mod tests {
                     ),
                 ])),
                 Member::Index(Box::new(Expression::Atom(Atom::Int(0)))),
+            ),
+        );
+    }
+
+    #[test]
+    fn test_field_init() {
+        assert_parse_eq(
+            "GeoPoint{ latitude: 10.0, longitude: 5.5 }",
+            Expression::Member(
+                Box::new(Expression::Ident(String::from("GeoPoint").into())),
+                Member::Fields(vec![
+                    (
+                        String::from("latitude").into(),
+                        Expression::Atom(Atom::Float(10.0)),
+                    ),
+                    (
+                        String::from("longitude").into(),
+                        Expression::Atom(Atom::Float(5.5)),
+                    ),
+                ]),
             ),
         );
     }
