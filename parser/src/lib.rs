@@ -501,4 +501,27 @@ mod tests {
             ),
         );
     }
+
+    #[test]
+    fn test_nested_field_init() {
+        assert_parse_eq(
+            "common.GeoPoint{ latitude: 10.0, longitude: 5.5 }",
+            Expression::Member(
+                Box::new(Expression::Member(
+                    Box::new(Expression::Ident(String::from("common").into())),
+                    Member::Attribute(String::from("GeoPoint")),
+                )),
+                Member::Fields(vec![
+                    (
+                        String::from("latitude").into(),
+                        Expression::Atom(Atom::Float(10.0)),
+                    ),
+                    (
+                        String::from("longitude").into(),
+                        Expression::Atom(Atom::Float(5.5)),
+                    ),
+                ]),
+            ),
+        );
+    }
 }

@@ -311,10 +311,13 @@ pub fn parser() -> impl Parser<char, Expression, Error = Simple<char>> {
             .labelled("field items");
 
         // TODO Need to handle nested identifiers here
-        // e.g. `.then(just('.').then(ident.clone())).repeated()`
-
         let field_inits = ident
             .clone()
+            // .then(just('.').then(ident.clone()))
+            // .repeated()
+            // .foldr(|lhs_ident_expression: Expression, rhs: Expression| {
+            //     Expression::Member(lhs_ident_expression, Member::Attribute())
+            // })
             .then(field_items)
             .map(|(name, items)| Expression::Member(Box::new(name), Member::Fields(items)));
 
