@@ -300,26 +300,37 @@ pub fn parser() -> impl Parser<char, Expression, Error = Simple<char>> {
         let field_item = field_identifier
             .clone()
             .then_ignore(just(':'))
-            .then(expr.clone().padded());
+            .then(expr.clone())
+            //.map(|(name, value)| (name, value))
+            ;
 
         let field_items = field_item
             .clone()
             .separated_by(just(','))
             .delimited_by(just('{'), just('}'))
             .padded()
-            .collect::<Vec<(Rc<String>, Expression)>>()
             .labelled("field items");
 
         // TODO Need to handle nested identifiers here
         let field_inits = ident
             .clone()
-            // .then(just('.').then(ident.clone()))
-            // .repeated()
-            // .foldr(|lhs_ident_expression: Expression, rhs: Expression| {
-            //     Expression::Member(lhs_ident_expression, Member::Attribute())
-            // })
+            .then(just('.').ignore_then(ident.clone()).repeated())
+            .foldl(|lhs: Expression, rhs: Expression| {
+                // Processing a list of Ident expressions
+                // foldl starts with the first element (Ident Expression) and works to the right
+                // We convert the Ident Expressions to attribute member expressions except for the left most one
+                // Ident(A), Ident(B) -> Member(Ident(A), Attribute(B))
+                // Member(Ident(A), Attribute(B)), Ident(C) -> Member(Member(Ident(A), Attribute(B)), Attribute(C))
+                match rhs {
+                    Expression::Ident(name) => Expression::Member(
+                        Box::new(lhs), // LHS stays as an Ident Expression
+                        Member::Attribute(name),
+                    ),
+                    _ => panic!("Expected ident!"),
+                }
+            })
             .then(field_items)
-            .map(|(name, items)| Expression::Member(Box::new(name), Member::Fields(items)));
+            .map(|(lhs, items)| Expression::Member(Box::new(lhs), Member::Fields(items)));
 
         let primary = choice((literal, field_inits, ident, expr_in_paren, list, map))
             .labelled("primary")
