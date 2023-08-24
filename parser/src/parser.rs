@@ -1,7 +1,7 @@
 use crate::ast::{ArithmeticOp, Atom, Expression, Member, RelationOp, UnaryOp};
-
 use chumsky::prelude::*;
 use chumsky::Parser;
+use std::rc::Rc;
 
 fn boolean() -> impl Parser<char, Expression, Error = Simple<char>> {
     just("true")
@@ -289,16 +289,47 @@ pub fn parser() -> impl Parser<char, Expression, Error = Simple<char>> {
             .map(|items| Expression::Map(items))
             .labelled("map");
 
-        let primary = choice((
-            literal,
-            ident,
-            expr_in_paren,
-            list,
-            map,
-            // TODO field inits here
-        ))
-        .labelled("primary")
-        .boxed();
+        let field_identifier = text::ident::<char, Simple<char>>()
+            .padded()
+            .map(|s| {
+                let ref_counted_field_id: Rc<String> = Rc::from(String::from(s));
+                ref_counted_field_id
+            })
+            .labelled("field identifier");
+
+        let field_item = field_identifier
+            .clone()
+            .then_ignore(just(':'))
+            .then(expr.clone());
+
+        let field_items = field_item
+            .clone()
+            .separated_by(just(','))
+            .delimited_by(just('{'), just('}'))
+            .padded()
+            .labelled("field items");
+
+        let field_inits = ident
+            .clone()
+            .then(just('.').ignore_then(ident.clone()).repeated())
+            .foldl(|lhs: Expression, rhs: Expression| {
+                // We convert the Ident Expressions to attribute member expressions except for the left most one
+                // Ident(A), Ident(B) -> Member(Ident(A), Attribute(B))
+                // Member(Ident(A), Attribute(B)), Ident(C) -> Member(Member(Ident(A), Attribute(B)), Attribute(C))
+                match rhs {
+                    Expression::Ident(name) => Expression::Member(
+                        Box::new(lhs), // LHS stays as an Ident Expression
+                        Member::Attribute(name),
+                    ),
+                    _ => panic!("Expected ident!"),
+                }
+            })
+            .then(field_items)
+            .map(|(lhs, items)| Expression::Member(Box::new(lhs), Member::Fields(items)));
+
+        let primary = choice((literal, field_inits, ident, expr_in_paren, list, map))
+            .labelled("primary")
+            .boxed();
 
         let member_chain = primary
             .clone()
@@ -616,6 +647,7 @@ mod tests {
             Ok(Expression::Atom(Atom::Bytes(expected.into())))
         );
     }
+
     #[test]
     fn test_raw_bytes_single_hexadecimal() {
         let expected = vec![0xff as u8];

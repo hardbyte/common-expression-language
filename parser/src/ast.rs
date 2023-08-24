@@ -45,6 +45,7 @@ pub enum Member {
     Attribute(String),
     FunctionCall(Vec<Expression>),
     Index(Box<Expression>),
+    Fields(Vec<(Rc<String>, Expression)>),
 }
 
 #[derive(Clone, Debug, PartialEq)]
