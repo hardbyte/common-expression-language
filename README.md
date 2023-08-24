@@ -59,6 +59,26 @@ Bool(true)
 
 ```
 
+To add context from a JSON file use `--input` with either a filename or `-` to read from
+stdin:
+
+```shell
+echo "{\"foo\":\"bar\"}" | cargo run -- --expression="foo" --input -
+```
+
+Outputs:
+
+```
+Context: Map(CelMap { map: {String("foo"): String("bar")} })
+CEL Expression:
+"foo"
+
+AST:
+Ident("foo")
+
+Evaluating program
+String("bar")
+```
 
 # References
 

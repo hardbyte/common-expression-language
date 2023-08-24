@@ -43,8 +43,9 @@ fn main() {
         .unwrap_or_else(|| _create_empty_cel_map());
 
     let src = app.expression.to_string();
-    println!("Context: {:?}", context);
-    println!("CEL Expression:\n{:?}\n", src);
+
+    //println!("Context: {:?}", context);
+    //println!("CEL Expression:\n{:?}\n", src);
 
     match parse_cel_expression(src) {
         Ok(ast) => {
@@ -52,16 +53,14 @@ fn main() {
             println!("Evaluating program");
             let default_vars = &mut Vec::new();
 
+            // Pre-populate the default vars context
             // Create hard coded variables for testing, and eventually builtin macros
-            let test_int_var_name = String::from("test_int");
-            let test_str_var_name = String::from("test_str");
-            let test_map_var_name = String::from("test_map");
             default_vars.push((
-                &test_int_var_name,
+                String::from("test_int"),
                 CelType::NumericCelType(NumericCelType::Int(1)),
             ));
             default_vars.push((
-                &test_str_var_name,
+                String::from("test_str"),
                 CelType::String(Rc::new(String::from("hello world"))),
             ));
             let mut test_map = HashMap::new();
@@ -74,11 +73,21 @@ fn main() {
                 CelType::NumericCelType(NumericCelType::Int(2)),
             );
             default_vars.push((
-                &test_map_var_name,
+                String::from("test_map"),
                 CelType::Map(CelMap {
                     map: Rc::new(test_map),
                 }),
             ));
+
+            // Now add the optional context passed in by the user.
+            // eg context might be
+            // Map(CelMap { map: {String("float key"): NumericCelType(Float(3.14)), String("array key"): List([Map(CelMap { map: {String("a bool"): Bool(true)} })]), String("nested object"): Map(CelMap { map: {String("nested key"): NumericCelType(Int(1))} }), String("foo"): String("bar"), String("int key"): NumericCelType(Int(42)), String("string key"): String("my value")} })
+            // and we want to add that to the default_vars Vec
+            if let CelType::Map(CelMap { map }) = context {
+                map.iter().for_each(|(key, value)| {
+                    default_vars.push((String::from(key), value.clone()));
+                })
+            }
 
             match eval(&ast, default_vars) {
                 Ok(output) => println!("{:?}", output),
@@ -86,7 +95,7 @@ fn main() {
             }
         }
         Err(parse_errs) => {
-            println!("An error occurred!");
+            println!("An error occurred during parsing");
             parse_errs
                 .into_iter()
                 .for_each(|e| println!("Parse error: {:?}", e));
@@ -104,28 +113,14 @@ fn _create_empty_cel_map() -> CelType {
 fn load_context(context_filename: &str) -> Result<String, String> {
     match context_filename {
         "-" => {
-            // read from stdin
             println!("Reading context from stdin");
             let stdin = io::stdin();
             let mut reader = stdin.lock();
             let mut data = String::new();
             reader.read_to_string(&mut data).unwrap();
-            println!("Context file read");
             Ok(data)
         }
-        input_filename => {
-            fs::read_to_string(input_filename)
-                .map_err(|e| format!("Error reading context file: {}", e))
-            // Read the entire file into a string
-            // match fs::read_to_string(input_filename) {
-            //     Ok(data) => {
-            //         println!("Context file read");
-            //         Ok(data)
-            //     }
-            //     Err(e) => {
-            //         Err(format!("Error reading context file: {}", e))
-            //     }
-            // }
-        }
+        input_filename => fs::read_to_string(input_filename)
+            .map_err(|e| format!("Error reading context file: {}", e)),
     }
 }

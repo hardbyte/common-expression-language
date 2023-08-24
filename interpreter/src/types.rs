@@ -102,6 +102,17 @@ pub enum CelMapKey {
     String(Rc<String>),
 }
 
+impl From<&CelMapKey> for String {
+    fn from(value: &CelMapKey) -> String {
+        match value {
+            CelMapKey::Int(x) => x.to_string(),
+            CelMapKey::UInt(x) => x.to_string(),
+            CelMapKey::Bool(x) => x.to_string(),
+            CelMapKey::String(x) => x.to_string(),
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct CelMap {
     pub map: Rc<HashMap<CelMapKey, CelType>>,

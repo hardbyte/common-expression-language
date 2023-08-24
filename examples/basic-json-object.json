@@ -1,14 +1,14 @@
 {
   "foo": "bar",
-  "string key": "my value",
-  "int key": 42,
-  "float key": 3.14,
-  "nested object": {
-    "nested key": 1
+  "string_key": "my value",
+  "int_key": 42,
+  "float_key": 3.14,
+  "nested_object": {
+    "nested_key": 1
   },
-  "array key": [
+  "array_key": [
     {
-      "a bool": true
+      "a_bool": true
     }
   ]
 }

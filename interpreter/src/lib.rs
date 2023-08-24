@@ -11,15 +11,12 @@ mod strings;
 pub mod types;
 mod utils;
 
-pub fn eval<'a>(
-    expr: &'a Expression,
-    vars: &mut Vec<(&'a String, CelType)>,
-) -> Result<CelType, String> {
+pub fn eval(expr: &Expression, vars: &mut Vec<(String, CelType)>) -> Result<CelType, String> {
     match expr {
         Expression::Atom(atom) => Ok(atom.into()),
         Expression::Ident(name) => {
             for (var_name, var_value) in vars.iter() {
-                if *var_name == name {
+                if var_name == name {
                     return Ok(var_value.clone());
                 }
             }
