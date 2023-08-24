@@ -24,3 +24,5 @@ jobs:
       #- run: cargo clippy --all-targets -- -D warnings
 
       - run: cargo test
+
+      - uses: boa-dev/criterion-compare-action@v3
