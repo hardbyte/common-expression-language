@@ -126,9 +126,8 @@ mod tests {
 
     #[test]
     fn test_parser_ident() {
-        assert_parse_eq("a", Expression::Ident(String::from("a").into()));
-
-        assert_parse_eq("hello ", Expression::Ident(String::from("hello").into()));
+        assert_parse_eq("a", Expression::Ident(String::from("a")));
+        assert_parse_eq("hello ", Expression::Ident(String::from("hello")));
     }
 
     #[test]
@@ -136,7 +135,7 @@ mod tests {
         assert_parse_eq(
             "a()",
             Expression::Member(
-                Box::new(Expression::Ident(String::from("a").into())),
+                Box::new(Expression::Ident(String::from("a"))),
                 Member::FunctionCall(vec![]),
             ),
         );
@@ -147,7 +146,7 @@ mod tests {
         assert_parse_eq(
             "a(0,1)",
             Expression::Member(
-                Box::new(Expression::Ident(String::from("a").into())),
+                Box::new(Expression::Ident(String::from("a"))),
                 Member::FunctionCall(vec![
                     Expression::Atom(Atom::Int(0)),
                     Expression::Atom(Atom::Int(1)),
@@ -389,15 +388,15 @@ mod tests {
     #[test]
     fn test_nonempty_map_parsing() {
         assert_parse_eq(
-            "{'a': 1, 'b': 2}",
+            "{'a': 1, 'b': 2u}",
             Expression::Map(vec![
                 (
                     Expression::Atom(Atom::String(String::from("a").into())),
                     Expression::Atom(Atom::Int(1)),
                 ),
                 (
-                    Expression::Atom(Atom::String(String::from("b").into())).into(),
-                    Expression::Atom(Atom::Int(2)),
+                    Expression::Atom(Atom::String(String::from("b").into())),
+                    Expression::Atom(Atom::UInt(2)),
                 ),
             ]),
         );
@@ -473,7 +472,7 @@ mod tests {
                         Expression::Atom(Atom::Int(1)),
                     ),
                     (
-                        Expression::Atom(Atom::String(String::from("b").into())).into(),
+                        Expression::Atom(Atom::String(String::from("b").into())),
                         Expression::Atom(Atom::Int(2)),
                     ),
                 ])),
@@ -487,7 +486,7 @@ mod tests {
         assert_parse_eq(
             "GeoPoint{ latitude: 10.0, longitude: 5.5 }",
             Expression::Member(
-                Box::new(Expression::Ident(String::from("GeoPoint").into())),
+                Box::new(Expression::Ident(String::from("GeoPoint"))),
                 Member::Fields(vec![
                     (
                         String::from("latitude").into(),
@@ -508,7 +507,7 @@ mod tests {
             "common.GeoPoint{ latitude: 10.0, longitude: 5.5 }",
             Expression::Member(
                 Box::new(Expression::Member(
-                    Box::new(Expression::Ident(String::from("common").into())),
+                    Box::new(Expression::Ident(String::from("common"))),
                     Member::Attribute(String::from("GeoPoint")),
                 )),
                 Member::Fields(vec![

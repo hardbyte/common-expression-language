@@ -258,7 +258,7 @@ pub fn parser() -> impl Parser<char, Expression, Error = Simple<char>> {
         let function_call = just('(')
             .ignore_then(expr_list.clone())
             .then_ignore(just(')'))
-            .map(|args: Vec<Expression>| Member::FunctionCall(args))
+            .map(Member::FunctionCall)
             .labelled("function call");
 
         let index_access = just('[')
@@ -271,7 +271,7 @@ pub fn parser() -> impl Parser<char, Expression, Error = Simple<char>> {
             .clone()
             // Ignore trailing comma
             .delimited_by(just('['), just(']'))
-            .map(|items: Vec<Expression>| Expression::List(items))
+            .map(Expression::List)
             .labelled("list");
 
         let map_item = expr
@@ -286,13 +286,13 @@ pub fn parser() -> impl Parser<char, Expression, Error = Simple<char>> {
             .separated_by(just(','))
             .delimited_by(just('{'), just('}'))
             .padded()
-            .map(|items| Expression::Map(items))
+            .map(Expression::Map)
             .labelled("map");
 
         let field_identifier = text::ident::<char, Simple<char>>()
             .padded()
             .map(|s| {
-                let ref_counted_field_id: Rc<String> = Rc::from(String::from(s));
+                let ref_counted_field_id: Rc<String> = Rc::from(s);
                 ref_counted_field_id
             })
             .labelled("field identifier");
@@ -479,32 +479,32 @@ mod tests {
 
         assert_eq!(
             triple_single_quoted_escaped_string.parse(r"''''''"),
-            Ok(String::from("").into())
+            Ok(String::from(""))
         );
         assert_eq!(
             triple_single_quoted_escaped_string.parse(r"'''hello'''"),
-            Ok(String::from("hello").into())
+            Ok(String::from("hello"))
         );
         // Check triple quoted strings interpret escape sequences (note this is a rust raw string, not a CEL raw string)
         assert_eq!(
             triple_single_quoted_escaped_string.parse(r"'''\n'''"),
-            Ok(String::from("\n").into())
+            Ok(String::from("\n"))
         );
         assert_eq!(
             triple_single_quoted_escaped_string.parse(r"'''x''x'''"),
-            Ok(String::from("x''x").into())
+            Ok(String::from("x''x"))
         );
         assert_eq!(
             triple_single_quoted_escaped_string.parse(r"''' '''"),
-            Ok(String::from(" ").into())
+            Ok(String::from(" "))
         );
         assert_eq!(
             triple_single_quoted_escaped_string.parse(r"'''\xFF'''"),
-            Ok(String::from("ÿ").into())
+            Ok(String::from("ÿ"))
         );
         assert_eq!(
             triple_single_quoted_escaped_string.parse(r"'''\377'''"),
-            Ok(String::from("ÿ").into())
+            Ok(String::from("ÿ"))
         );
     }
 
@@ -640,7 +640,7 @@ mod tests {
 
     #[test]
     fn test_raw_bytes_single_octal() {
-        let expected = vec![0xff as u8];
+        let expected = vec![0xffu8];
 
         assert_eq!(
             str_().parse(r"b'\377'"),
@@ -650,7 +650,7 @@ mod tests {
 
     #[test]
     fn test_raw_bytes_single_hexadecimal() {
-        let expected = vec![0xff as u8];
+        let expected = vec![0xffu8];
 
         assert_eq!(
             str_().parse(r"b'\xFF'"),
