@@ -9,3 +9,7 @@ edition = "2021"
 cel-parser = { path = "../parser" }
 cel-interpreter = { path = "../interpreter"}
 clap = { version = "4.3.11", features = ["derive"]}
+
+[[bin]]
+name = "cel-cli"
+bench = false

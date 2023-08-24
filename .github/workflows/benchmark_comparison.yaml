@@ -7,21 +7,14 @@ on:
 
 jobs:
   rust:
-    name: Rust format, lint, and test
+    name: Benchmarks
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      # https://github.com/actions-rs/toolchain
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-
-      - run: cargo fmt -- --check
-
-      #- run: cargo clippy --all-targets -- -D warnings
-
-      - run: cargo test
-
       - uses: boa-dev/criterion-compare-action@v3
         with:
           branchName: ${{ github.base_ref }}
+          package: "parser"
