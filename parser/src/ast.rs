@@ -42,7 +42,7 @@ pub enum UnaryOp {
 #[derive(Clone, Debug, PartialEq)]
 pub enum Member {
     // a.b, a[b, c...], a(b, c, ...)
-    Attribute(String),
+    Attribute(Rc<String>),
     FunctionCall(Vec<Expression>),
     Index(Box<Expression>),
     Fields(Vec<(Rc<String>, Expression)>),
@@ -60,7 +60,7 @@ pub enum Expression {
 
     Atom(Atom),
 
-    Ident(String),
+    Ident(Rc<String>),
 
     Member(Box<Expression>, Box<Member>),
 

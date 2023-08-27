@@ -3,6 +3,7 @@ use cel_parser::ast::{ArithmeticOp, Expression, Member, RelationOp, UnaryOp};
 use serde_json;
 use serde_json::{Number, Value};
 use std::collections::HashMap;
+use std::ops::Deref;
 use std::rc::Rc;
 use types::{CelFunction, CelMap, CelMapKey, CelType, NumericCelType};
 
@@ -14,7 +15,8 @@ mod utils;
 pub fn eval(expr: &Expression, vars: &mut Vec<(String, CelType)>) -> Result<CelType, String> {
     match expr {
         Expression::Atom(atom) => Ok(atom.into()),
-        Expression::Ident(name) => {
+        Expression::Ident(rc_name) => {
+            let name = rc_name.as_ref();
             for (var_name, var_value) in vars.iter() {
                 if var_name == name {
                     return Ok(var_value.clone());

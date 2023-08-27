@@ -13,6 +13,7 @@ pub fn parse_cel_expression(input: String) -> Result<ast::Expression, Vec<Simple
 mod tests {
     use crate::ast::{ArithmeticOp, Atom, Expression, Member, RelationOp, UnaryOp};
     use crate::parse_cel_expression;
+    use std::rc::Rc;
 
     #[test]
     fn test_parser_errors() {
@@ -126,8 +127,8 @@ mod tests {
 
     #[test]
     fn test_parser_ident() {
-        assert_parse_eq("a", Expression::Ident(String::from("a")));
-        assert_parse_eq("hello ", Expression::Ident(String::from("hello")));
+        assert_parse_eq("a", Expression::Ident(Rc::new(String::from("a"))));
+        assert_parse_eq("hello ", Expression::Ident(Rc::new(String::from("hello"))));
     }
 
     #[test]
@@ -135,7 +136,7 @@ mod tests {
         assert_parse_eq(
             "a()",
             Expression::Member(
-                Box::new(Expression::Ident(String::from("a"))),
+                Box::new(Expression::Ident(Rc::new(String::from("a")))),
                 Box::new(Member::FunctionCall(vec![])),
             ),
         );
@@ -146,7 +147,7 @@ mod tests {
         assert_parse_eq(
             "a(0,1)",
             Expression::Member(
-                Box::new(Expression::Ident(String::from("a"))),
+                Box::new(Expression::Ident(Rc::new(String::from("a")))),
                 Box::new(Member::FunctionCall(vec![
                     Expression::Atom(Atom::Int(0)),
                     Expression::Atom(Atom::Int(1)),
@@ -486,7 +487,7 @@ mod tests {
         assert_parse_eq(
             "GeoPoint{ latitude: 10.0, longitude: 5.5 }",
             Expression::Member(
-                Box::new(Expression::Ident(String::from("GeoPoint"))),
+                Box::new(Expression::Ident(Rc::new(String::from("GeoPoint")))),
                 Box::new(Member::Fields(vec![
                     (
                         String::from("latitude").into(),
@@ -507,8 +508,8 @@ mod tests {
             "common.GeoPoint{ latitude: 10.0, longitude: 5.5 }",
             Expression::Member(
                 Box::new(Expression::Member(
-                    Box::new(Expression::Ident(String::from("common"))),
-                    Box::new(Member::Attribute(String::from("GeoPoint"))),
+                    Box::new(Expression::Ident(Rc::new(String::from("common")))),
+                    Box::new(Member::Attribute(Rc::new(String::from("GeoPoint")))),
                 )),
                 Box::new(Member::Fields(vec![
                     (
