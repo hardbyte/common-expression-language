@@ -6,9 +6,9 @@ pub enum RelationOp {
     NotEquals,
     Equals,
     GreaterThan,
-    GreaterThanOrEqual,
+    GreaterThanEq,
     LessThan,
-    LessThanOrEqual,
+    LessThanEq,
     In,
 }
 
@@ -62,7 +62,7 @@ pub enum Expression {
 
     Ident(String),
 
-    Member(Box<Expression>, Member),
+    Member(Box<Expression>, Box<Member>),
 
     Unary(UnaryOp, Box<Expression>),
 

@@ -136,7 +136,7 @@ mod tests {
             "a()",
             Expression::Member(
                 Box::new(Expression::Ident(String::from("a"))),
-                Member::FunctionCall(vec![]),
+                Box::new(Member::FunctionCall(vec![])),
             ),
         );
     }
@@ -147,10 +147,10 @@ mod tests {
             "a(0,1)",
             Expression::Member(
                 Box::new(Expression::Ident(String::from("a"))),
-                Member::FunctionCall(vec![
+                Box::new(Member::FunctionCall(vec![
                     Expression::Atom(Atom::Int(0)),
                     Expression::Atom(Atom::Int(1)),
-                ]),
+                ])),
             ),
         );
     }
@@ -246,7 +246,7 @@ mod tests {
             "2 <= 3",
             Expression::Relation(
                 Box::new(Expression::Atom(Atom::Int(2))),
-                RelationOp::LessThanOrEqual,
+                RelationOp::LessThanEq,
                 Box::new(Expression::Atom(Atom::Int(3))),
             ),
         );
@@ -337,7 +337,7 @@ mod tests {
                     Expression::Atom(Atom::Int(2)),
                     Expression::Atom(Atom::Int(3)),
                 ])),
-                Member::Index(Box::new(Expression::Atom(Atom::Int(0)))),
+                Box::new(Member::Index(Box::new(Expression::Atom(Atom::Int(0))))),
             ),
         );
     }
@@ -476,7 +476,7 @@ mod tests {
                         Expression::Atom(Atom::Int(2)),
                     ),
                 ])),
-                Member::Index(Box::new(Expression::Atom(Atom::Int(0)))),
+                Box::new(Member::Index(Box::new(Expression::Atom(Atom::Int(0))))),
             ),
         );
     }
@@ -487,7 +487,7 @@ mod tests {
             "GeoPoint{ latitude: 10.0, longitude: 5.5 }",
             Expression::Member(
                 Box::new(Expression::Ident(String::from("GeoPoint"))),
-                Member::Fields(vec![
+                Box::new(Member::Fields(vec![
                     (
                         String::from("latitude").into(),
                         Expression::Atom(Atom::Float(10.0)),
@@ -496,7 +496,7 @@ mod tests {
                         String::from("longitude").into(),
                         Expression::Atom(Atom::Float(5.5)),
                     ),
-                ]),
+                ])),
             ),
         );
     }
@@ -508,9 +508,9 @@ mod tests {
             Expression::Member(
                 Box::new(Expression::Member(
                     Box::new(Expression::Ident(String::from("common"))),
-                    Member::Attribute(String::from("GeoPoint")),
+                    Box::new(Member::Attribute(String::from("GeoPoint"))),
                 )),
-                Member::Fields(vec![
+                Box::new(Member::Fields(vec![
                     (
                         String::from("latitude").into(),
                         Expression::Atom(Atom::Float(10.0)),
@@ -519,7 +519,7 @@ mod tests {
                         String::from("longitude").into(),
                         Expression::Atom(Atom::Float(5.5)),
                     ),
-                ]),
+                ])),
             ),
         );
     }

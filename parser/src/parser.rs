@@ -241,7 +241,7 @@ pub fn parser() -> impl Parser<char, Expression, Error = Simple<char>> {
     let literal = choice((numbers(), boolean(), str_(), null)).labelled("literal");
 
     let attribute_access = just('.').ignore_then(ident.clone()).map(|rhs| match rhs {
-        Expression::Ident(name) => Member::Attribute(name),
+        Expression::Ident(name) => Box::new(Member::Attribute(name)),
         _ => panic!("Expected ident!"),
     });
 
@@ -258,13 +258,13 @@ pub fn parser() -> impl Parser<char, Expression, Error = Simple<char>> {
         let function_call = just('(')
             .ignore_then(expr_list.clone())
             .then_ignore(just(')'))
-            .map(Member::FunctionCall)
+            .map(|args| Box::new(Member::FunctionCall(args)))
             .labelled("function call");
 
         let index_access = just('[')
             .ignore_then(expr.clone())
             .then_ignore(just(']'))
-            .map(|arg: Expression| Member::Index(Box::new(arg)))
+            .map(|arg: Expression| Box::new(Member::Index(Box::new(arg))))
             .labelled("index");
 
         let list = expr_list
@@ -319,13 +319,13 @@ pub fn parser() -> impl Parser<char, Expression, Error = Simple<char>> {
                 match rhs {
                     Expression::Ident(name) => Expression::Member(
                         Box::new(lhs), // LHS stays as an Ident Expression
-                        Member::Attribute(name),
+                        Box::new(Member::Attribute(name)),
                     ),
                     _ => panic!("Expected ident!"),
                 }
             })
             .then(field_items)
-            .map(|(lhs, items)| Expression::Member(Box::new(lhs), Member::Fields(items)));
+            .map(|(lhs, items)| Expression::Member(Box::new(lhs), Box::new(Member::Fields(items))));
 
         let primary = choice((literal, field_inits, ident, expr_in_paren, list, map))
             .labelled("primary")
@@ -389,8 +389,8 @@ pub fn parser() -> impl Parser<char, Expression, Error = Simple<char>> {
         let relationship_op = just("==")
             .to(RelationOp::Equals)
             .or(just("!=").to(RelationOp::NotEquals))
-            .or(just(">=").to(RelationOp::GreaterThanOrEqual))
-            .or(just("<=").to(RelationOp::LessThanOrEqual))
+            .or(just(">=").to(RelationOp::GreaterThanEq))
+            .or(just("<=").to(RelationOp::LessThanEq))
             .or(just('>').to(RelationOp::GreaterThan))
             .or(just('<').to(RelationOp::LessThan))
             .or(just("in").to(RelationOp::In));

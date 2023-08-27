@@ -86,9 +86,9 @@ pub fn eval(expr: &Expression, vars: &mut Vec<(String, CelType)>) -> Result<CelT
                     RelationOp::Equals => Ok(CelType::Bool(a == b)),
                     RelationOp::NotEquals => Ok(CelType::Bool(a != b)),
                     RelationOp::LessThan => Ok(CelType::Bool(a < b)),
-                    RelationOp::LessThanOrEqual => Ok(CelType::Bool(a <= b)),
+                    RelationOp::LessThanEq => Ok(CelType::Bool(a <= b)),
                     RelationOp::GreaterThan => Ok(CelType::Bool(a > b)),
-                    RelationOp::GreaterThanOrEqual => Ok(CelType::Bool(a >= b)),
+                    RelationOp::GreaterThanEq => Ok(CelType::Bool(a >= b)),
                     RelationOp::In => Err(format!(
                         "Unsupported operation 'in' between numerical types"
                     )),
@@ -189,82 +189,94 @@ pub fn eval(expr: &Expression, vars: &mut Vec<(String, CelType)>) -> Result<CelT
                 map: Rc::new(output),
             }))
         }
-        Expression::Member(lhs, Member::Index(index_expression)) => {
-            //println!("Evaluating a member[index]");
-            // What can we assert about the LHS?
-            let evaluated_lhs = eval(lhs, vars)?;
-            match evaluated_lhs {
-                CelType::String(s) => {
-                    let str = s.as_str();
-                    // If the LHS is a string, then the index element must evaluate to integers
-                    let index: Result<CelType, _> = eval(index_expression, vars);
-                    match index {
-                        // Match a single numerical index
-                        Ok(CelType::NumericCelType(cel_index)) => {
-                            let index = strings::str_index_from_cel_number(&cel_index, s.len())?;
+        Expression::Member(lhs, rhs) => {
+            match rhs.as_ref() {
+                Member::Index(index_expression) => {
+                    //println!("Evaluating a member[index]");
+                    // What can we assert about the LHS?
+                    let evaluated_lhs = eval(lhs, vars)?;
+                    match evaluated_lhs {
+                        CelType::String(s) => {
+                            let str = s.as_str();
+                            // If the LHS is a string, then the index element must evaluate to integers
+                            let index: Result<CelType, _> = eval(index_expression, vars);
+                            match index {
+                                // Match a single numerical index
+                                Ok(CelType::NumericCelType(cel_index)) => {
+                                    let index =
+                                        strings::str_index_from_cel_number(&cel_index, s.len())?;
 
-                            Ok(CelType::String(Rc::new(str[index..index + 1].to_string())))
-                        }
-                        Ok(invalid_type) => {
-                            Err(format!("Index must be an integer not {:?}", invalid_type))
-                        }
-                        Err(e) => Err(format!(
-                            "Runtime error in evaluating index expression.\n{:?}",
-                            e
-                        )),
-                    }
-                }
-                CelType::Map(m) => {
-                    let evaluated_index_expression = eval(index_expression, vars)?;
-                    // Get a MapKey variant from the index expression
-                    let map_key = CelMapKey::from(evaluated_index_expression);
-                    Ok(m.map.get(&map_key).unwrap().clone())
-                }
-                CelType::List(l) => {
-                    let index = eval(index_expression, vars);
-                    match index {
-                        // Match a numerical index, otherwise produce an error
-                        Ok(CelType::NumericCelType(cel_index)) => {
-                            let usize_res = usize_from_cel_number(&cel_index);
-                            let e = Err(format!("Index out of bounds"));
-                            match usize_res {
-                                // // A real implementation wouldn't just create a copy here!
-                                Ok(i) if (i < l.len()) => Ok(l.get(i).unwrap().clone()),
-                                Ok(_) => e,
-                                Err(index_err) => Err(index_err),
+                                    Ok(CelType::String(Rc::new(str[index..index + 1].to_string())))
+                                }
+                                Ok(invalid_type) => {
+                                    Err(format!("Index must be an integer not {:?}", invalid_type))
+                                }
+                                Err(e) => Err(format!(
+                                    "Runtime error in evaluating index expression.\n{:?}",
+                                    e
+                                )),
                             }
-                            // let value = l.get(index).unwrap();
+                        }
+                        CelType::Map(m) => {
+                            let evaluated_index_expression = eval(index_expression, vars)?;
+                            // Get a MapKey variant from the index expression
+                            let map_key = CelMapKey::from(evaluated_index_expression);
+                            Ok(m.map.get(&map_key).unwrap().clone())
+                        }
+                        CelType::List(l) => {
+                            let index = eval(index_expression, vars);
+                            match index {
+                                // Match a numerical index, otherwise produce an error
+                                Ok(CelType::NumericCelType(cel_index)) => {
+                                    let usize_res = usize_from_cel_number(&cel_index);
+                                    let e = Err(format!("Index out of bounds"));
+                                    match usize_res {
+                                        // // A real implementation wouldn't just create a copy here!
+                                        Ok(i) if (i < l.len()) => Ok(l.get(i).unwrap().clone()),
+                                        Ok(_) => e,
+                                        Err(index_err) => Err(index_err),
+                                    }
+                                    // let value = l.get(index).unwrap();
 
-                            // Ok(value.clone())
+                                    // Ok(value.clone())
+                                }
+                                Ok(invalid_type) => {
+                                    Err(format!("Index must be an integer not {:?}", invalid_type))
+                                }
+                                Err(e) => Err(format!(
+                                    "Runtime error in evaluating index expression.\n{:?}",
+                                    e
+                                )),
+                            }
                         }
-                        Ok(invalid_type) => {
-                            Err(format!("Index must be an integer not {:?}", invalid_type))
-                        }
-                        Err(e) => Err(format!(
-                            "Runtime error in evaluating index expression.\n{:?}",
-                            e
+                        _ => Err(format!(
+                            "Unhandled member operation for {:?}",
+                            evaluated_lhs
                         )),
                     }
                 }
-                _ => Err(format!(
-                    "Unhandled member operation for {:?}",
-                    evaluated_lhs
-                )),
-            }
-        }
-        Expression::Member(lhs, Member::FunctionCall(args)) => {
-            let evaluated_lhs = eval(lhs, vars)?;
-            match evaluated_lhs {
-                CelType::Function(f) => {
-                    // Call the function (evaluate the output?)
-                    let mut evaluated_arguments: Vec<CelType> = Vec::with_capacity(args.len());
-                    // Evaluate each expression in the list of arguments
-                    for expr in args {
-                        evaluated_arguments.push(eval(&expr, vars)?);
+                Member::FunctionCall(args) => {
+                    let evaluated_lhs = eval(lhs, vars)?;
+                    match evaluated_lhs {
+                        CelType::Function(f) => {
+                            // Call the function (evaluate the output?)
+                            let mut evaluated_arguments: Vec<CelType> =
+                                Vec::with_capacity(args.len());
+                            // Evaluate each expression in the list of arguments
+                            for expr in args {
+                                evaluated_arguments.push(eval(&expr, vars)?);
+                            }
+                            return Ok((f.function)(evaluated_arguments));
+                        }
+                        _ => Err(format!("Can't call this type")),
                     }
-                    return Ok((f.function)(evaluated_arguments));
                 }
-                _ => Err(format!("Can't call this type")),
+                Member::Attribute(attribute_name) => {
+                    panic!("Unhandled attribute lookup");
+                }
+                Member::Fields(fields) => {
+                    panic!("Unhandled fields lookup");
+                }
             }
         }
         Expression::And(lhs, rhs) => {
@@ -317,8 +329,6 @@ pub fn eval(expr: &Expression, vars: &mut Vec<(String, CelType)>) -> Result<CelT
                 )),
             }
         }
-
-        _ => Err(format!("Need to handle expression {:?}", expr)),
     }
 }
 
