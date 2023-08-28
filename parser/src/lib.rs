@@ -20,6 +20,7 @@ mod tests {
         assert!(parse_cel_expression("1a".to_string()).is_err());
         assert!(parse_cel_expression("#$^%&*".to_string()).is_err());
         assert!(parse_cel_expression("+".to_string()).is_err());
+        assert!(parse_cel_expression("1.".to_string()).is_err());
     }
 
     fn parse(input: &str) -> Expression {
@@ -521,6 +522,20 @@ mod tests {
                         Expression::Atom(Atom::Float(5.5)),
                     ),
                 ])),
+            ),
+        );
+    }
+
+    #[test]
+    fn test_primitive_function_call() {
+        assert_parse_eq(
+            "10.double()",
+            Expression::Member(
+                Box::new(Expression::Member(
+                    Box::new(Expression::Atom(Atom::Int(10))),
+                    Box::new(Member::Attribute("double".to_string().into())),
+                )),
+                Box::new(Member::FunctionCall(vec![])),
             ),
         );
     }
