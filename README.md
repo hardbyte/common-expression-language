@@ -27,7 +27,7 @@ cargo run -- --expression="-(3.0 + 5.0) * 2.0e0 - -1.0"
 Which outputs something like:
 ```
 AST:
-Binary(Binary(Unary(Neg, Binary(Atom(Double(3.0)), Add, Atom(Double(5.0)))), Mul, Atom(Double(2.0))), Sub, Unary(Neg, Atom(Double(1.0))))
+Arithmetic(Arithmetic(Unary(Neg, Arithmetic(Atom(Float(3.0)), Add, Atom(Float(5.0)))), Multiply, Atom(Float(2.0))), Subtract, Unary(Neg, Atom(Float(1.0))))
 
 Evaluating program
 NumericCelType(Float(-15.0))
@@ -46,18 +46,13 @@ cargo run -- --expression="size('hello world') > 5u"
 
 Outputs:
 ```
-CEL Expression:
-"size('hello world') > 5u"
-
-Context data:
-None
 AST:
-Binary(Member(Var("size"), Call([Atom(String("hello world"))])), GreaterThan, Atom(UInt(5)))
+Relation(Member(Ident("size"), FunctionCall([Atom(String("hello world"))])), GreaterThan, Atom(UInt(5)))
 
 Evaluating program
 Bool(true)
-
 ```
+### Context
 
 To add context from a JSON file use `--input` with either a filename or `-` to read from
 stdin:
@@ -69,16 +64,27 @@ echo "{\"foo\":\"bar\"}" | cargo run -- --expression="foo" --input -
 Outputs:
 
 ```
-Context: Map(CelMap { map: {String("foo"): String("bar")} })
-CEL Expression:
-"foo"
-
+Parsed context data: Object {"foo": String("bar")}
 AST:
 Ident("foo")
 
 Evaluating program
 String("bar")
 ```
+
+
+### Python Bindings
+
+A Python package `rustycel` using PyO3 in `python_bindings` offers a simple `evaluate` function from Python:
+
+```python
+>>> import rustycel
+>>> rustycel.evaluate("1u + 4u")
+5
+```
+
+_Note only a few primitive types are mapped back to Python native types._
+
 
 # References
 
