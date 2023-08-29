@@ -43,9 +43,13 @@ jobs:
       - name: Test rustycel
         if: matrix.target == 'x86_64'
         run: |
+          pwd
+          cd python_bindings
+          python -m venv venv
+          source venv/bin/activate
           maturin develop
           pytest
-#
+
 #      - name: Upload wheels
 #        uses: actions/upload-artifact@v3
 #        with:
