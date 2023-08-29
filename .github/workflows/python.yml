@@ -38,7 +38,7 @@ jobs:
           manylinux: auto
       - name: Test Python Package
         run: |
-          python -m pip pytest
+          python -m pip install pytest
           python -m pip install dist/*.whl
           pytest
 
