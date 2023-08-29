@@ -28,6 +28,9 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: '3.10'
+      - name: Install Python Dependencies
+        run: |
+          python -m pip install pytest
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
@@ -36,10 +39,11 @@ jobs:
           args: --release --out dist --find-interpreter
           sccache: 'true'
           manylinux: auto
+      - name: Install Built Python Package
+        run: |
+          python -m pip install rustycel --no-index --find-links dist --force-reinstall
       - name: Test Python Package
         run: |
-          python -m pip install pytest
-          python -m pip install dist/*.whl
           pytest
 
       - name: Upload wheels
