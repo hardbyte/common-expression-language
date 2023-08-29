@@ -1,0 +1,14 @@
+[package]
+name = "rustycel"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+name = "rustycel"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = "0.19.0"
+cel-parser = { path = "../parser" }
+cel-interpreter = { path = "../interpreter"}

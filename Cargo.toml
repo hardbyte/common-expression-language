@@ -3,5 +3,6 @@
 members = [
     "parser",
     "interpreter",
-    "cli"
+    "cli",
+    "python_bindings",
 ]

@@ -7,7 +7,6 @@ use std::ops::Deref;
 use std::rc::Rc;
 use types::{CelFunction, CelMap, CelMapKey, CelType, NumericCelType};
 
-// TODO should this really be public?
 mod strings;
 pub mod types;
 mod utils;
