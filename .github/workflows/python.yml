@@ -37,17 +37,17 @@ jobs:
         with:
           working-directory: python_bindings
           target: ${{ matrix.target }}
-          args: --release --out dist --find-interpreter
+          args: --release --out dist --find-interpreter -m python/Cargo.toml
           sccache: 'true'
           manylinux: auto
+      - name: Install built wheel
+        if: matrix.target == 'x86_64'
+        run: |
+          pip install rustycel --no-index --find-links dist --force-reinstall
+          python -c "import rustycel"
       - name: Test rustycel
         if: matrix.target == 'x86_64'
         run: |
-          pwd
-          cd python_bindings
-          python -m venv venv
-          source venv/bin/activate
-          maturin develop
           pytest
 
 #      - name: Upload wheels
