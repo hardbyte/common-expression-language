@@ -43,11 +43,14 @@ jobs:
       - name: Install built wheel
         if: matrix.target == 'x86_64'
         run: |
+          cd python_bindings
           pip install rustycel --no-index --find-links dist --force-reinstall
+          #pip install -e .
           python -c "import rustycel"
       - name: Test rustycel
         if: matrix.target == 'x86_64'
         run: |
+          cd python_bindings
           pytest
 
 #      - name: Upload wheels
