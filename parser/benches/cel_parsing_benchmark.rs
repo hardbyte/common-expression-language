@@ -1,6 +1,6 @@
 use cel_parser::parse_cel_expression;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-
+use cel_interpreter::{eval, map_json_text_to_cel_types};
 use cel_parser::ast::Expression;
 
 fn parse(input: &str) -> Expression {
@@ -51,6 +51,48 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         b.iter(|| parse("false ? 'result_true' : 'result_false'"))
     });
     group2.finish();
+
+    // Benchmark for evaluating expressions using the cel_interpreter::eval function
+    let mut eval_group = c.benchmark_group("eval-expressions");
+    // Benchmark for evaluating different types of expressions
+    eval_group.bench_function("eval_simple_arithmetic", |b| {
+        b.iter(|| {
+            let expr = parse("1 + 2");
+            let default_vars = &mut Vec::new();
+            eval(&expr, default_vars).unwrap();
+        })
+    });
+    eval_group.bench_function("eval_logical_expression", |b| {
+        b.iter(|| {
+            let expr = parse("true && false");
+            let default_vars = &mut Vec::new();
+            eval(&expr, default_vars).unwrap();
+        })
+    });
+    eval_group.bench_function("eval_function_call", |b| {
+        b.iter(|| {
+            let expr = parse("size('hello')");
+            let default_vars = &mut Vec::new();
+            eval(&expr, default_vars).unwrap();
+        })
+    });
+    // Ensure benchmarks cover both successful evaluations and error scenarios
+    eval_group.bench_function("eval_error_scenario", |b| {
+        b.iter(|| {
+            let expr = parse("undefined_var");
+            let default_vars = &mut Vec::new();
+            assert!(eval(&expr, default_vars).is_err());
+        })
+    });
+    // Use realistic CEL expressions that might be encountered in real-world usage
+    eval_group.bench_function("eval_realistic_expression", |b| {
+        b.iter(|| {
+            let expr = parse("{'a': 1, 'b': 2}['a'] + 3");
+            let default_vars = &mut Vec::new();
+            eval(&expr, default_vars).unwrap();
+        })
+    });
+    eval_group.finish();
 }
 
 criterion_group!(benches, criterion_benchmark);
