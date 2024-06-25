@@ -1,0 +1,25 @@
+name: Benchmark
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+      - name: Run benchmarks
+        run: cargo bench
+      - uses: actions/upload-artifact@v3
+        with:
+          name: benchmark-results
+          path: target/criterion/report/
