@@ -1,0 +1,17 @@
+{
+  "name": "Rust Development",
+  "image": "rust:latest",
+  "extensions": [
+    "rust-lang.rust",
+    "vadimcn.vscode-lldb",
+    "serayuzgur.crates",
+    "belfz.search-crates-io",
+    "matklad.rust-analyzer"
+  ],
+  "forwardPorts": [],
+  "settings": {
+    "terminal.integrated.shell.linux": "/bin/bash"
+  },
+  "postCreateCommand": "cargo build",
+  "remoteUser": "rust"
+}
